@@ -1,0 +1,22 @@
+# NurseryGuard AI - dependencies
+# Requires Python 3.12 (MediaPipe does not support 3.13/3.14)
+# Versions below are pinned to what is actually installed and verified.
+
+# --- Phase 1: environment + webcam ---
+opencv-python==4.10.0.84
+numpy==1.26.4
+
+# --- Phase 2: pretrained YOLO detection ---
+ultralytics==8.4.136
+torch==2.13.0
+torchvision==0.28.0
+PyYAML==6.0.3
+
+# --- Phase 2: LINE alerting ---
+python-dotenv==1.2.3
+requests==2.34.2
+
+# --- Phase 3+: hand detection (NOT yet installed) ---
+# mediapipe==0.10.14
+
+# SQLite is part of the Python standard library - no package needed.

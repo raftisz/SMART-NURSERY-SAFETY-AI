@@ -1,0 +1,77 @@
+# NurseryGuard AI - configuration
+# Phase 2: pretrained detection only. No training, no risk logic yet.
+
+model:
+  # YOLO11 nano. Downloaded automatically on first run.
+  weights: yolo11n.pt
+  # cpu | mps | cuda | auto  ("auto" picks cuda > mps > cpu)
+  device: auto
+
+detection:
+  # Default confidence threshold. Adjustable at runtime with + / - keys.
+  conf: 0.25
+  # Step size for the + / - runtime adjustment.
+  conf_step: 0.05
+  conf_min: 0.05
+  conf_max: 0.95
+
+  # Model input size. Affects BOTH accuracy and speed, so it must be held
+  # constant across a whole test matrix and is recorded in every CSV row.
+  imgsz: 640
+
+  # Extra class-wise NMS applied on top of the model's own NMS, to remove
+  # duplicate boxes on a single object. Boxes of the SAME class overlapping by
+  # more than this IoU are merged, keeping the highest-confidence one.
+  # Lower = more aggressive de-duplication.
+  nms_iou: 0.5
+
+  # Class NAMES, resolved to integer IDs at runtime from model.names.
+  # Never hardcode COCO integer IDs - they differ between models.
+  target_classes:
+    - person
+    - scissors
+    - knife
+
+display:
+  # Rolling window (frames) for the averaged FPS / inference-time overlay.
+  fps_window: 30
+  # Mirror the frame horizontally BEFORE inference, so drawn boxes line up
+  # with what is shown. Only meaningful for a live self-view camera, so it
+  # defaults on for the webcam and off for files. Override with --flip/--no-flip.
+  flip_webcam: true
+  flip_file: false
+
+  # Requested webcam capture resolution. Leave blank to use the camera default.
+  # The camera may refuse the request, so the size actually used is read back
+  # from the frame and recorded in the CSV.
+  capture_width:
+  capture_height:
+
+  # Scale applied ONLY to the window handed to cv2.imshow. It never touches the
+  # frame sent to inference, the box coordinates, saved frames, or the CSV.
+  # Lower this to cut display cost on a large capture; 1.0 = no scaling.
+  display_scale: 1.0
+
+  # CAP_PROP_BUFFERSIZE for the camera. 1 drops stale queued frames. Blank to
+  # leave the driver default. Not supported by every backend.
+  buffersize:
+
+  # Capture backend for a webcam: auto | avfoundation | any
+  backend: auto
+
+paths:
+  frames_dir: data/test_frames
+  results_csv: docs/phase2_test_results.csv
+
+alerts:
+  # LINE Messaging API push alerts. Enabled at runtime with --line.
+  # Credentials live in .env, never here.
+  line_cooldown_seconds: 30
+
+  # Only these classes raise an alert. `person` alone never does.
+  hazard_classes:
+    - scissors
+    - knife
+
+  # Shown on the "กล้อง:" line of the LINE alert.
+  camera_name: "Notebook Camera"
