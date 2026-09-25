@@ -54,6 +54,36 @@
 
 ไม่ต้องแก้ Event Manager หรือระบบแจ้งเตือน
 
+## Module ที่ต่อเข้า Core แล้ว (ขั้น 8)
+
+| Module | Detector | โมเดล | Policy | สถานะใน config |
+|---|---|---|---|---|
+| `hazard_object` | `src/detectors/hazard_object.py` | `yolo11n.pt` (COCO, ดาวน์โหลดอัตโนมัติ) | `LabelMatchPolicy` scissors/knife (person อย่างเดียวไม่นับ) | เปิด |
+| `smoking` | `src/detectors/smoking.py` | `models/smoking/best.pt` | `LabelMatchPolicy` smoking/cigarette | เปิด (รันทุก 2 เฟรม) |
+| `climbing` | `src/detectors/climbing_pose.py` | `yolo11n-pose.pt` (pretrained ชั่วคราว) | `ClimbingPosePolicy` กฎเวอร์ชันแรกจาก `legacy/kids_acsident.py` | ปิด |
+
+ทั้งสอง detector แบบ YOLO ใช้ `src/detection/yolo_detector.py` เดิมผ่าน `src/detectors/yolo_label.py` โดยไม่แก้ไฟล์เดิม
+ค่าตั้งต้นเท่ากับของเดิม: hazard ใช้ค่าจาก `config.yaml` ของ Phase 2, smoking ใช้ conf 0.5 ตามแอป Streamlit เดิม
+ยังไม่มี metric ความแม่นยำของทุกโมเดล (ดู `models/README.md`)
+
+ตรวจว่า adapter ให้ผลตรงกับโค้ดเดิม (รันบน Mac):
+
+```bash
+python tools/check_adapters.py
+```
+
+## รันกับกล้อง 1 ตัว (ขั้น 9)
+
+```bash
+python run_core.py                      # ทุก module ที่เปิดใน config + หน้าต่างภาพ
+python run_core.py --modules smoking    # เลือกบาง module
+python run_core.py --source clip.mp4    # ใช้ไฟล์วิดีโอ / ภาพ / rtsp:// แทนกล้อง
+python run_core.py --console-only       # บังคับไม่ส่ง LINE ในรอบนี้
+```
+
+กด `q` หรือ `ESC` ในหน้าต่างภาพเพื่อหยุด (ใช้ได้ทั้งแป้นไทยและอังกฤษ) เมื่อหยุดจะสรุป FPS และเวลาของแต่ละ module
+เหตุการณ์บันทึกที่ `data/events.db` และภาพหลักฐานที่ `data/snapshots/` (ทั้งสองถูก ignore ใน git)
+
 ## รัน test
 
 จาก root ของรีโป:
