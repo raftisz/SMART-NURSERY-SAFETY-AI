@@ -1,0 +1,44 @@
+# CCTV Core configuration
+# ค่าตัวเลขในไฟล์นี้เป็นค่าเริ่มต้นสำหรับทดลอง ยังไม่ได้ปรับจากผลทดสอบจริง
+# (config.yaml เดิมที่ root ใช้กับ detect.py ต่อไปตามเดิม ไม่เกี่ยวกับไฟล์นี้)
+
+cameras:
+  - id: cam0
+    name: "Notebook Camera"
+    source: 0
+
+# Detection modules: detector + policy คู่กัน (adapter จะเพิ่มในขั้นที่ 8)
+# ตัวอย่างรูปแบบ:
+#   - detector:
+#       class: "src.detectors.smoking:SmokingDetector"
+#       params: {weights: "models/smoking/best.pt"}
+#     policy:
+#       class: "src.cctv_core.events.policies:LabelMatchPolicy"
+#       params: {event_type: smoking, labels: [smoking, cigarette], min_confidence: 0.5}
+modules: []
+
+events:
+  # ค่าตั้งต้นของทุกประเภท
+  default:
+    severity: MEDIUM
+    confirm_hits: 3        # ต้องเห็นกี่ครั้ง...
+    confirm_window_s: 2.0  # ...ภายในกี่วินาที จึงยืนยันเป็นเหตุการณ์
+    close_after_s: 10.0    # ไม่เห็นนานเท่านี้ = เหตุการณ์จบ
+    cooldown_s: 30.0       # เท่ากับ line_cooldown_seconds เดิมใน config.yaml
+  # ค่าเฉพาะประเภท (ใส่เฉพาะที่ต่างจาก default)
+  types:
+    hazard_object: {severity: HIGH}
+    smoking: {severity: MEDIUM}
+    climbing: {severity: HIGH}
+
+storage:
+  database: data/events.db       # ถูก ignore ใน git
+  snapshots_dir: data/snapshots  # ถูก ignore ใน git
+
+notifications:
+  channels:
+    console: {enabled: true}
+    line: {enabled: false}   # เปิดเมื่อพร้อม และต้องมีค่าใน .env
+  routes:
+    - {channels: [console], event_types: "*", min_severity: INFO}
+    - {channels: [line], event_types: "*", min_severity: MEDIUM}

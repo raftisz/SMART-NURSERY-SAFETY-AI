@@ -8,6 +8,8 @@
 > | `models/` | weight ของโปรเจกต์ + ทะเบียนโมเดล ดู [`models/README.md`](models/README.md) |
 > | `legacy/` | โค้ดต้นฉบับ smoking / climbing / Streamlit ดู [`legacy/README.md`](legacy/README.md) |
 > | `evidence/` | ภาพหน้าจอแจ้งเตือน LINE จากการทดสอบเดิม |
+> | `src/cctv_core/`, `config/core.yaml` | CCTV Core ใหม่ ดู [`docs/architecture.md`](docs/architecture.md) |
+> | `tests/` | unit test ของ Core: `python -m unittest discover -s tests -t .` |
 > | `.env.example` | ตัวอย่างตัวแปร LINE — คัดลอกเป็น `.env` แล้วใส่ค่าจริง (ห้าม commit `.env`) |
 >
 > เอกสารด้านล่างทั้งหมดเป็นของ NurseryGuard เดิม คำว่า `nursery_guard_ai/` ในเอกสารหมายถึง root ของรีโปนี้
