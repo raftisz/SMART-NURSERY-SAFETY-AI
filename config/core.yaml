@@ -6,16 +6,35 @@ cameras:
   - id: cam0
     name: "Notebook Camera"
     source: 0
+    flip: true             # กลับภาพซ้ายขวาเหมือน detect.py (เว็บแคมหันหน้าเข้าหาตัวเอง)
 
-# Detection modules: detector + policy คู่กัน (adapter จะเพิ่มในขั้นที่ 8)
-# ตัวอย่างรูปแบบ:
-#   - detector:
-#       class: "src.detectors.smoking:SmokingDetector"
-#       params: {weights: "models/smoking/best.pt"}
-#     policy:
-#       class: "src.cctv_core.events.policies:LabelMatchPolicy"
-#       params: {event_type: smoking, labels: [smoking, cigarette], min_confidence: 0.5}
-modules: []
+# Detection modules: detector + policy คู่กัน
+#   enabled: false = ปิด module นั้น
+#   run_every_n_frames: รันทุก N เฟรม เพื่อให้หลายโมเดลรันบน Mac เครื่องเดียวได้
+modules:
+  - detector:
+      class: "src.detectors.hazard_object:HazardObjectDetector"
+      params: {weights: "yolo11n.pt", conf: 0.25, imgsz: 640, nms_iou: 0.5, run_every_n_frames: 1}
+    policy:
+      class: "src.cctv_core.events.policies:LabelMatchPolicy"
+      # person อย่างเดียวไม่นับเป็นเหตุการณ์ (เหมือน detect.py เดิม)
+      params: {event_type: hazard_object, labels: [scissors, knife], min_confidence: 0.25}
+
+  - detector:
+      class: "src.detectors.smoking:SmokingDetector"
+      params: {weights: "models/smoking/best.pt", conf: 0.5, run_every_n_frames: 2}
+    policy:
+      class: "src.cctv_core.events.policies:LabelMatchPolicy"
+      params: {event_type: smoking, labels: [smoking, cigarette], min_confidence: 0.5}
+
+  # ปิดไว้ก่อน: ยังไม่มี weight ของโปรเจกต์ ใช้ yolo11n-pose.pt แบบ pretrained แทน
+  - enabled: false
+    detector:
+      class: "src.detectors.climbing_pose:ClimbingPoseDetector"
+      params: {weights: "yolo11n-pose.pt", conf: 0.3, run_every_n_frames: 2}
+    policy:
+      class: "src.detectors.climbing_pose:ClimbingPosePolicy"
+      params: {event_type: climbing, require_both: true}
 
 events:
   # ค่าตั้งต้นของทุกประเภท
