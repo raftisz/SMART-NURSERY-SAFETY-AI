@@ -176,8 +176,8 @@ from IPython.display import display, Javascript, HTML
 # ---------------------------------------------------------
 # 1. รับค่า LINE Official Notification (Messaging API) ผ่าน input box
 # ---------------------------------------------------------
-LINE_ACCESS_TOKEN = input("53Bl1F1XFZt345tyFLlbSpBw92CkohC9hmarWexetwZoYpsKQlCqTkZtEp63riaMf7+Xn5jIZmRQ0yfnAtI62AHKfoGMs/kvMIhJkaoBQ4yB481srnO7YUthCWcRTpw2TmLq13mIBdRgEM8bMivRGwdB04t89/1O/w1cDnyilFU=: ")
-LINE_USER_ID = input("U2acd3d211c88bcc6a00210c59ed702fd: ")
+LINE_ACCESS_TOKEN = input("LINE Channel Access Token: ")
+LINE_USER_ID = input("LINE User ID: ")
 
 # ฟังก์ชันส่งข้อความแจ้งเตือนเข้า LINE Official
 def send_line_message_text(message):
@@ -469,8 +469,8 @@ from ultralytics import YOLO
 # 1. ตั้งค่า LINE Official Account (Messaging API)
 # ---------------------------------------------------------
 # 🔑 วาง Token และ User ID ที่ได้จาก LINE Developers Console ของคุณเองที่นี่
-LINE_ACCESS_TOKEN = '53Bl1F1XFZt345tyFLlbSpBw92CkohC9hmarWexetwZoYpsKQlCqTkZtEp63riaMf7+Xn5jIZmRQ0yfnAtI62AHKfoGMs/kvMIhJkaoBQ4yB481srnO7YUthCWcRTpw2TmLq13mIBdRgEM8bMivRGwdB04t89/1O/w1cDnyilFU='
-LINE_USER_ID = 'U2acd3d211c88bcc6a00210c59ed702fd'
+LINE_ACCESS_TOKEN = 'วาง_CHANNEL_ACCESS_TOKEN_ที่นี่'  # ห้ามใส่ค่าจริงแล้ว commit
+LINE_USER_ID = 'วาง_USER_ID_ที่นี่'
 
 def send_line_official_custom(status_text, confidence=0.0):
     if 'วาง_' in LINE_ACCESS_TOKEN or not LINE_ACCESS_TOKEN:

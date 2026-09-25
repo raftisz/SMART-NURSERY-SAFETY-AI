@@ -1,0 +1,28 @@
+# ---- ความลับ / Credentials: ห้าม commit ----
+.env
+.env.*
+!.env.example
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+.ipynb_checkpoints/
+
+# ---- macOS ----
+.DS_Store
+
+# ---- weight ที่ Ultralytics ดาวน์โหลดอัตโนมัติ (ไม่ใช่โมเดลของโปรเจกต์) ----
+yolo11*.pt
+yolov8*.pt
+runs/
+
+# ---- ข้อมูลที่ระบบสร้างตอนรัน ----
+/alerts/
+legacy/alerts/
+data/events.db
+data/snapshots/
+
+# ---- ไฟล์ patch (อาจมีข้อมูลเก่าที่ถูกลบออก) ----
+*.patch
