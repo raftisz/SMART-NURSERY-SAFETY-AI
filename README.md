@@ -1,5 +1,18 @@
 # NurseryGuard AI
 
+> **CCTV Core All Detection — โครงสร้างรีโป (กำลังปรับเป็น Modular CCTV Core)**
+>
+> | โฟลเดอร์ / ไฟล์ | เนื้อหา |
+> |---|---|
+> | `main.py`, `detect.py`, `config.yaml`, `src/`, `tools/`, `docs/`, `data/` | NurseryGuard เดิม (ย้ายจาก `nursery-guard-ai-main/` มาไว้ที่ root, เนื้อหาไม่เปลี่ยน) |
+> | `models/` | weight ของโปรเจกต์ + ทะเบียนโมเดล ดู [`models/README.md`](models/README.md) |
+> | `legacy/` | โค้ดต้นฉบับ smoking / climbing / Streamlit ดู [`legacy/README.md`](legacy/README.md) |
+> | `evidence/` | ภาพหน้าจอแจ้งเตือน LINE จากการทดสอบเดิม |
+> | `.env.example` | ตัวอย่างตัวแปร LINE — คัดลอกเป็น `.env` แล้วใส่ค่าจริง (ห้าม commit `.env`) |
+>
+> เอกสารด้านล่างทั้งหมดเป็นของ NurseryGuard เดิม คำว่า `nursery_guard_ai/` ในเอกสารหมายถึง root ของรีโปนี้
+> `detect.py` คือเครื่องมือทดสอบ Phase 2 และผูกกับ Decision Gate จึงคงไว้ตามเดิม (ยังส่ง LINE ตรง) ไม่ใช่ส่วนของ CCTV Core
+
 A real-time dangerous object and child risk detection system for nursery environments.
 
 The system watches a live webcam or CCTV stream, detects dangerous objects and the

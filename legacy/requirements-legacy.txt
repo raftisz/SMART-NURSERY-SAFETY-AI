@@ -1,0 +1,4 @@
+# สำหรับ legacy/streamlit_smoking_app.py เท่านั้น
+-r ../requirements.txt
+# โค้ดเดิมไม่ได้ระบุเวอร์ชัน streamlit (UNKNOWN)
+streamlit

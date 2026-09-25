@@ -21,6 +21,7 @@ runs/
 # ---- ข้อมูลที่ระบบสร้างตอนรัน ----
 /alerts/
 legacy/alerts/
+models/**/alerts/
 data/events.db
 data/snapshots/
 
