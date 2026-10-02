@@ -61,6 +61,7 @@
 | `hazard_object` | `src/detectors/hazard_object.py` | `yolo11n.pt` (COCO, ดาวน์โหลดอัตโนมัติ) | `LabelMatchPolicy` scissors/knife (person อย่างเดียวไม่นับ) | เปิด |
 | `smoking` | `src/detectors/smoking.py` | `models/smoking/best.pt` | `LabelMatchPolicy` smoking/cigarette | เปิด (รันทุก 2 เฟรม) |
 | `climbing` | `src/detectors/climbing_pose.py` | `yolo11n-pose.pt` (pretrained ชั่วคราว) | `ClimbingPosePolicy` กฎเวอร์ชันแรกจาก `legacy/kids_acsident.py` | ปิด |
+| `out_of_area` | ใช้กรอบ `person` จาก `hazard_object` (ไม่รันโมเดลเพิ่ม) | – | `OutOfAreaPolicy` ใน `src/policies/out_of_area.py` | เปิด (ทำงานเมื่อมีโซนใน `config/zones.yaml`) |
 
 ทั้งสอง detector แบบ YOLO ใช้ `src/detection/yolo_detector.py` เดิมผ่าน `src/detectors/yolo_label.py` โดยไม่แก้ไฟล์เดิม
 ค่าตั้งต้นเท่ากับของเดิม: hazard ใช้ค่าจาก `config.yaml` ของ Phase 2, smoking ใช้ conf 0.5 ตามแอป Streamlit เดิม
@@ -83,6 +84,32 @@ python run_core.py --console-only       # บังคับไม่ส่ง L
 
 กด `q` หรือ `ESC` ในหน้าต่างภาพเพื่อหยุด (ใช้ได้ทั้งแป้นไทยและอังกฤษ) เมื่อหยุดจะสรุป FPS และเวลาของแต่ละ module
 เหตุการณ์บันทึกที่ `data/events.db` และภาพหลักฐานที่ `data/snapshots/` (ทั้งสองถูก ignore ใน git)
+
+## เด็กออกนอกพื้นที่ (Out-of-Area)
+
+ตรวจเด็กที่ไปอยู่ในโซนทางออก (เช่นประตูรั้ว) ในช่วงเวลาที่กำหนด
+
+1. **จุดเท้า** = กึ่งกลางขอบล่างของกรอบ person ต้องอยู่ในโซน
+2. **เด็กหรือผู้ใหญ่** = ความสูงในภาพ ÷ ความสูงที่ผู้ใหญ่ยืนตรงจุดนั้นควรเป็น ถ้าน้อยกว่า `child_ratio` (ค่าเริ่มต้น 0.75) นับเป็นเด็ก
+3. **ช่วงเวลา** = `active_hours` ของโซน (ว่าง = ตลอดเวลา)
+4. **อยู่นานพอ** = `min_duration_s` ของ `out_of_area` ใน `config/core.yaml` (ค่าเริ่มต้น 3 วินาที)
+
+สร้างโซน (ต้องรันใหม่ทุกครั้งที่ย้ายกล้อง):
+
+```bash
+python tools/define_zone.py --name main_gate --hours 09:00-15:00
+python tools/define_zone.py --name main_gate --source qa_clip.mp4   # วาดบนคลิปของ QA
+python tools/define_zone.py --name test --any-person                # ทดสอบเร็ว: ไม่แยกเด็ก
+```
+
+ขั้นตอนในหน้าต่าง: คลิกมุมโซนบนพื้น → Enter → ให้ผู้ใหญ่ยืนตรงใกล้กล้อง กด Spacebar หยุดภาพ คลิกศีรษะแล้วคลิกเท้า → Enter → ทำซ้ำตอนยืนไกลกล้อง → Enter
+Backspace หรือคลิกขวา = ลบจุดล่าสุด, ESC = ยกเลิก
+
+ข้อจำกัด v1: ผู้ใหญ่ที่นั่งหรือย่อตัวในโซนจะถูกนับเป็นเด็ก, เด็กที่เดิน**เข้า**มาจากนอกโซนก็แจ้งเตือน (ยังไม่ดูทิศทาง), คนที่กรอบถูกขอบภาพตัดจะไม่ถูกวัด, กล้องต้องเห็นเท้า และยังไม่มีผลวัดความแม่นยำ
+
+## Event Schema 1.1
+
+เพิ่มช่อง `subject` (เช่นชื่อโซน) เหตุการณ์ถูกนับแยกตาม (กล้อง, ประเภท, subject) และเพิ่ม `min_duration_s` / `max_gap_s` ให้ประเภทเหตุการณ์ที่ต้องเห็นต่อเนื่องนาน ๆ ก่อนยืนยัน ค่าเริ่มต้นปิด พฤติกรรมเดิมไม่เปลี่ยน
 
 ## รัน test
 

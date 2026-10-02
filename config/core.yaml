@@ -15,10 +15,15 @@ modules:
   - detector:
       class: "src.detectors.hazard_object:HazardObjectDetector"
       params: {weights: "yolo11n.pt", conf: 0.25, imgsz: 640, nms_iou: 0.5, run_every_n_frames: 1}
-    policy:
-      class: "src.cctv_core.events.policies:LabelMatchPolicy"
-      # person อย่างเดียวไม่นับเป็นเหตุการณ์ (เหมือน detect.py เดิม)
-      params: {event_type: hazard_object, labels: [scissors, knife], min_confidence: 0.25}
+    # โมเดลเดียวส่งผลให้ 2 กฎ: ของมีคม + เด็กออกนอกพื้นที่ (ใช้กรอบ person ชุดเดียวกัน ไม่รันโมเดลเพิ่ม)
+    policies:
+      - class: "src.cctv_core.events.policies:LabelMatchPolicy"
+        # person อย่างเดียวไม่นับเป็นเหตุการณ์ (เหมือน detect.py เดิม)
+        params: {event_type: hazard_object, labels: [scissors, knife], min_confidence: 0.25}
+      - class: "src.policies.out_of_area:OutOfAreaPolicy"
+        # โซนอยู่ใน config/zones.yaml สร้างด้วย: python tools/define_zone.py --name <ชื่อโซน>
+        # child_ratio: สูงไม่ถึงกี่เท่าของผู้ใหญ่ที่ยืนจุดเดียวกัน = เด็ก (เด็ก 2-6 ขวบ ประมาณ 0.5-0.75)
+        params: {zones_file: "config/zones.yaml", min_confidence: 0.4, child_ratio: 0.75}
 
   - detector:
       class: "src.detectors.smoking:SmokingDetector"
@@ -49,6 +54,8 @@ events:
     hazard_object: {severity: HIGH}
     smoking: {severity: MEDIUM}
     climbing: {severity: HIGH}
+    # อยู่ในโซนต่อเนื่องกี่วินาทีจึงแจ้งเตือน (ปรับได้ตามต้องการ)
+    out_of_area: {severity: HIGH, min_duration_s: 3.0}
 
 storage:
   database: data/events.db       # ถูก ignore ใน git

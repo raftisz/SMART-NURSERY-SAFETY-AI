@@ -1,0 +1,4 @@
+# Zones per camera - written by tools/define_zone.py (you may also edit by hand)
+# Coordinates are fractions (0..1) of the image width/height.
+# ยังไม่มีโซน สร้างด้วย: python tools/define_zone.py --name main_gate
+zones: {}

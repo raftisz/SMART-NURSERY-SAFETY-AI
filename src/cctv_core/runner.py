@@ -83,9 +83,9 @@ def draw_output(image: Any, output: DetectorOutput) -> None:
         p1, p2 = (int(b.x1), int(b.y1)), (int(b.x2), int(b.y2))
         cv2.rectangle(image, p1, p2, color, 2)
         text = f"{d.label} {d.confidence:.2f}"
-        status = d.attributes.get("pose_status")
-        if status:
-            text += f" {status}"
+        for key in ("pose_status", "tag"):
+            if d.attributes.get(key):
+                text += f" {d.attributes[key]}"
         cv2.putText(image, text, (p1[0], max(15, p1[1] - 6)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
         for k in d.keypoints or []:

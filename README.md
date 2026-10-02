@@ -9,6 +9,7 @@
 > | `legacy/` | โค้ดต้นฉบับ smoking / climbing / Streamlit ดู [`legacy/README.md`](legacy/README.md) |
 > | `evidence/` | ภาพหน้าจอแจ้งเตือน LINE จากการทดสอบเดิม |
 > | `src/cctv_core/`, `config/core.yaml` | CCTV Core ใหม่ ดู [`docs/architecture.md`](docs/architecture.md) |
+> | `tools/define_zone.py`, `config/zones.yaml` | วาดโซนเด็กออกนอกพื้นที่: `python tools/define_zone.py --name main_gate` |
 > | `run_core.py`, `src/detectors/` | รัน CCTV Core กับกล้อง: `python run_core.py` |
 > | `tests/` | unit test ของ Core: `python -m unittest discover -s tests -t .` |
 > | `.env.example` | ตัวอย่างตัวแปร LINE — คัดลอกเป็น `.env` แล้วใส่ค่าจริง (ห้าม commit `.env`) |
