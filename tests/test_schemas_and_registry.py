@@ -3,7 +3,7 @@ import unittest
 from types import SimpleNamespace
 
 from src.cctv_core.registry import build_detector, build_policy, import_object
-from src.cctv_core.schemas import BBox, Detection, Event, EventStatus, Severity
+from src.cctv_core.schemas import SCHEMA_VERSION, BBox, Detection, Event, EventStatus, Severity
 from src.cctv_core.events.policies import LabelMatchPolicy
 from src.cctv_core.schemas import DetectorOutput, Frame
 from tests.fakes import FakeDetector, det
@@ -32,7 +32,7 @@ class SchemaTests(unittest.TestCase):
         json.dumps(data, ensure_ascii=False)
         self.assertEqual(data["severity"], "MEDIUM")
         self.assertEqual(data["status"], EventStatus.CANDIDATE.value)
-        self.assertEqual(data["schema_version"], "1.0")
+        self.assertEqual(data["schema_version"], SCHEMA_VERSION)
 
 
 class RegistryTests(unittest.TestCase):

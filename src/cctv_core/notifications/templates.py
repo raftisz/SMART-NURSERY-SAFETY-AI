@@ -10,6 +10,7 @@ TITLES: dict[str, str] = {
     "smoking": "ตรวจพบการสูบบุหรี่",
     "hazard_object": "ตรวจพบวัตถุอันตราย",
     "climbing": "ตรวจพบพฤติกรรมเสี่ยงปีนป่าย",
+    "out_of_area": "ตรวจพบเด็กออกนอกพื้นที่",
 }
 
 
@@ -28,6 +29,8 @@ def format_message(event: Event, camera_names: dict[str, str] | None = None) -> 
     ]
     if event.peak_detection is not None:
         lines.append(f"🎯 ประเภท: {event.peak_detection.label}")
+    if event.subject:
+        lines.append(f"📍 โซน: {event.subject}")
     lines += [
         f"📊 Confidence: {event.peak_confidence:.2f}",
         f"⚡ ระดับ: {event.severity.name}",

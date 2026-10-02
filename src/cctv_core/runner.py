@@ -31,8 +31,18 @@ DEFAULT_COLOR = (255, 160, 0)
 
 @dataclass
 class Module:
+    """One detector and the rule(s) that read its output.
+
+    `policy` may be a single EventPolicy or a list, so one model run can feed
+    several rules (e.g. hazard objects AND out-of-area from the same person boxes).
+    """
+
     detector: BaseDetector
-    policy: EventPolicy
+    policy: EventPolicy | list[EventPolicy]
+
+    @property
+    def policies(self) -> list[EventPolicy]:
+        return list(self.policy) if isinstance(self.policy, (list, tuple)) else [self.policy]
 
 
 def build_modules(cfg: dict[str, Any], only: set[str] | None = None) -> list[Module]:
@@ -41,7 +51,10 @@ def build_modules(cfg: dict[str, Any], only: set[str] | None = None) -> list[Mod
     for entry in cfg.get("modules") or []:
         if entry.get("enabled", True) is False:
             continue
-        module = Module(build_detector(entry["detector"]), build_policy(entry["policy"]))
+        specs = entry.get("policies")
+        if specs is None:
+            specs = [entry["policy"]]
+        module = Module(build_detector(entry["detector"]), [build_policy(p) for p in specs])
         if only and module.detector.name not in only:
             continue
         modules.append(module)
@@ -156,7 +169,9 @@ class Runner:
         name = m.detector.name
         try:
             output = m.detector.process(frame)
-            candidates = m.policy.evaluate(output)
+            if not output.frame_width:
+                output.frame_width, output.frame_height = frame.width, frame.height
+            candidates = [c for p in m.policies for c in p.evaluate(output)]
         except Exception as exc:  # one broken module must not stop the others
             self.stats.errors[name] += 1
             if name not in self._error_reported:
@@ -175,7 +190,8 @@ class Runner:
             event = self.events.manager.submit(c, image=evidence)
             if event is not None:
                 self.stats.confirmed += 1
-                print(f"[EVENT] {event.status.value} {event.event_type} @ {event.camera_id} "
+                where = f" [{event.subject}]" if event.subject else ""
+                print(f"[EVENT] {event.status.value} {event.event_type}{where} @ {event.camera_id} "
                       f"(peak {event.peak_confidence:.2f})")
 
     def _show(self, image: Any) -> bool:
@@ -183,6 +199,9 @@ class Runner:
         import cv2
 
         view = image.copy()
+        for m in self.modules:
+            for p in m.policies:
+                p.draw(view, self.camera_id)
         for output in self._last_output.values():
             draw_output(view, output)
         elapsed = max(1e-6, time.perf_counter() - self._start_perf)

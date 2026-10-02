@@ -11,7 +11,7 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"  # 1.1: optional subject (e.g. zone name); frame size on DetectorOutput
 
 
 # --------------------------------------------------------------------------
@@ -103,6 +103,8 @@ class DetectorOutput:
     detections: list[Detection]
     inference_ms: float = 0.0
     model: ModelInfo | None = None
+    frame_width: int = 0   # size of the frame the detector saw (for normalised geometry)
+    frame_height: int = 0
 
 
 # --------------------------------------------------------------------------
@@ -155,6 +157,9 @@ class EventCandidate:
     detection: Detection | None = None
     model: ModelInfo | None = None
     extra: dict[str, Any] = field(default_factory=dict)
+    #: optional sub-key, e.g. a zone name. Events are tracked per
+    #: (camera_id, event_type, subject), so two zones never merge.
+    subject: str | None = None
 
 
 @dataclass
@@ -185,6 +190,7 @@ class Event:
     snapshot_path: str | None = None
     notifications: list[DeliveryRecord] = field(default_factory=list)
     extra: dict[str, Any] = field(default_factory=dict)
+    subject: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """JSON-safe dict (enums become their names)."""

@@ -50,3 +50,6 @@ class EventPolicy(ABC):
     @abstractmethod
     def evaluate(self, output: DetectorOutput) -> list[EventCandidate]:
         ...
+
+    def draw(self, image, camera_id: str) -> None:
+        """Optional: draw rule geometry (e.g. zones) on the live view. Default: nothing."""

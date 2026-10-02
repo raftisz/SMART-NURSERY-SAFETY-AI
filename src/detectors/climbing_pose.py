@@ -96,7 +96,7 @@ class ClimbingPoseDetector(BaseDetector):
                 ))
         return DetectorOutput(self.name, frame.camera_id, frame.frame_index, frame.timestamp,
                               detections, (time.perf_counter() - started) * 1000.0,
-                              self.model_info)
+                              self.model_info, frame.width, frame.height)
 
 
 class ClimbingPosePolicy(EventPolicy):

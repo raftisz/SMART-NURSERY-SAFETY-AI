@@ -84,4 +84,6 @@ class YoloLabelDetector(BaseDetector):
             detections=[Detection.from_legacy(d) for d in legacy],
             inference_ms=(time.perf_counter() - started) * 1000.0,
             model=self.model_info,
+            frame_width=frame.width,
+            frame_height=frame.height,
         )
