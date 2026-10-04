@@ -1,0 +1,8 @@
+{
+  "threshold": 0.1,
+  "split": "Validation",
+  "classifier": "models/smoking_cls/smoking_cls_v1_mac.pt sha256 4f3f2b4c4997f656",
+  "detector": "models/smoking/best.pt sha256 fded2de373f09f73",
+  "max_recall_drop": 0.05,
+  "date": "2026-10-04 17:50"
+}

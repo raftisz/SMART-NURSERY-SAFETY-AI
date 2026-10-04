@@ -1,0 +1,26 @@
+{
+  "file": "smoking_cls_v1_mac.pt",
+  "sha256": "4f3f2b4c4997f65626d514cb50fe42b4cc8125ac72947ad88117fb30b846a61f",
+  "date": "2026-10-04T17:49",
+  "base": "yolo11n-cls.pt",
+  "data": "Mendeley Smoker Detection - Training only, split 85%/15% per class with seed 0 (same as notebooks/smoking_cls_colab.ipynb)",
+  "split_counts": {
+    "val/smoking": 54,
+    "train/smoking": 304,
+    "val/notsmoking": 54,
+    "train/notsmoking": 304
+  },
+  "train_args": {
+    "epochs": 30,
+    "imgsz": 224,
+    "batch": 32,
+    "patience": 10,
+    "seed": 0,
+    "deterministic": true
+  },
+  "device": "mps",
+  "machine": "arm64 macOS-14.3-arm64-arm-64bit",
+  "ultralytics": "8.4.136",
+  "torch": "2.13.0",
+  "results_csv_last_line": "13,70.7102,0.2236,0.84259,1,0.40257,0.00100687,0.00100687,0.00100687"
+}

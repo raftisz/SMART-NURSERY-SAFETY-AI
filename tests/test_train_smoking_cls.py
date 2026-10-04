@@ -88,5 +88,21 @@ class SameAsNotebookTests(unittest.TestCase):
             self.assertIn(f"{key}={tsc.TRAIN_ARGS[key]}", code, key)
 
 
+class RegistryTests(unittest.TestCase):
+    WEIGHTS = Path("models/smoking_cls/smoking_cls_v1_mac.pt")
+
+    def test_trained_weights_are_registered_with_their_hash(self):
+        if not self.WEIGHTS.is_file():
+            self.skipTest("verifier weights not trained on this machine")
+        sha = tsc.sha256_file(self.WEIGHTS)
+        info = json.loads(self.WEIGHTS.with_name("train_info.json").read_text(encoding="utf-8"))
+        self.assertEqual(info["sha256"], sha)
+        self.assertIn(sha, Path("models/README.md").read_text(encoding="utf-8"))
+
+    def test_rejected_verifier_is_not_used_by_the_core(self):
+        # Mendeley Testing said DO NOT ADOPT (docs/eval/smoking_cls_mendeley_test.md)
+        self.assertNotIn("smoking_cls", Path("config/core.yaml").read_text(encoding="utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main()

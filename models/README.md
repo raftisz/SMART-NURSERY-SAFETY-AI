@@ -34,3 +34,19 @@
 | ที่มา | `legacy/kids_acsident.py` โหลดจาก Google Drive ของเจ้าของเดิม: `Child_Pose_Project/runs/child_climbing_pose/weights/best.pt` |
 | สถานะ | **ไม่มีไฟล์ในรีโป** โค้ดเทรนและ dataset: UNKNOWN |
 | ทางเลือกชั่วคราว | `yolo11n-pose.pt` (pretrained, ไม่เทรนเพิ่ม) |
+
+## smoking_cls (ตัวยืนยัน) — `models/smoking_cls/smoking_cls_v1_mac.pt`
+
+| รายการ | ค่า |
+|---|---|
+| ที่มา | `tools/train_smoking_cls.py` บน Mac (Apple M3, mps), 2026-10-04 |
+| ฐาน | `yolo11n-cls.pt` (Ultralytics v8.4.0 release, SHA-256 `c62d41bf9625777760018bf914d2e6cd472420ccd01706d97a61cb6c82502bd7`) |
+| Classes | `notsmoking`, `smoking` |
+| Dataset | Mendeley Smoker Detection **Training เท่านั้น** (716 ภาพ, แบ่ง 85/15 seed 0) CC BY 4.0 |
+| Training args | epochs 30 (หยุดที่ 13, best epoch 3), imgsz 224, batch 32, patience 10 |
+| Ultralytics / torch | 8.4.136 / 2.13.0 |
+| SHA-256 | `4f3f2b4c4997f65626d514cb50fe42b4cc8125ac72947ad88117fb30b846a61f` |
+| threshold | 0.10 เลือกบน Validation (`docs/eval/smoking_cls_validation.md`) |
+| ผลบน Mendeley Testing | detector อย่างเดียว: เจอ 105/112, แจ้งผิด 41/112 → + ตัวยืนยัน: เจอ 99/112, แจ้งผิด 9/112 (`docs/eval/smoking_cls_mendeley_test.md`) |
+| สถานะ | **DO NOT ADOPT** (recall ลด 5.4 จุด เกินงบ 5 จุดที่ตั้งไว้ก่อน) ไม่ได้ใช้ในระบบ ยังไม่ได้วัดบนคลิป QA |
+| License | AGPL-3.0 (Ultralytics) |
