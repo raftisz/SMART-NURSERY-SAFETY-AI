@@ -81,7 +81,10 @@ class YoloAdapterTests(unittest.TestCase):
         self.assertEqual(digest, SMOKING_SHA)  # weight file unchanged
 
     def test_stock_weights_passed_through(self):
-        self.assertEqual(resolve_weights("yolo11n.pt"), ("yolo11n.pt", None))
+        # a name with no file in the repo is passed through for Ultralytics to download
+        # (not "yolo11n.pt": that file exists once it has been downloaded on a machine)
+        name = "stock-weights-not-on-disk.pt"
+        self.assertEqual(resolve_weights(name), (name, None))
 
 
 if __name__ == "__main__":
