@@ -77,6 +77,22 @@ class NamingTests(unittest.TestCase):
             self.assertEqual(back[0].path, str(Path(tmp) / "a.mp4"))
 
 
+class ShootingScriptTests(unittest.TestCase):
+    """docs/eval/qa_shooting_script.md must stay in step with the naming rule."""
+
+    def test_every_example_name_parses_and_covers_every_module(self):
+        import re
+
+        text = Path("docs/eval/qa_shooting_script.md").read_text(encoding="utf-8")
+        names = re.findall(r"`([a-z]+_(?:pos|neg)_s\d+_\d+[a-z0-9_]*\.mp4)`", text)
+        self.assertGreaterEqual(len(names), 10)
+        types = set()
+        for name in names:
+            event_type, _, _ = eval_clips.parse_clip_name(name)
+            types.add(event_type)
+        self.assertEqual(types, set(eval_clips.MODULE_TYPES.values()))
+
+
 class ClockTests(unittest.TestCase):
     def test_video_clock_follows_frames_not_wall_time(self):
         clock = eval_clips.VideoClock(fps=10, start=100.0)
