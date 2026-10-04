@@ -32,7 +32,7 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("บันทึกภาพ", format_message(event(snapshot="data/snapshots/a.jpg")))
 
     def test_unknown_type_has_fallback_title(self):
-        self.assertIn("ตรวจพบเหตุการณ์: fight", format_message(event(etype="fight")))
+        self.assertIn("ตรวจพบเหตุการณ์: new_module", format_message(event(etype="new_module")))
 
 
 class RouterTests(unittest.TestCase):

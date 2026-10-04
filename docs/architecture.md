@@ -61,6 +61,7 @@
 | `hazard_object` | `src/detectors/hazard_object.py` | `yolo11n.pt` (COCO, ดาวน์โหลดอัตโนมัติ) | `LabelMatchPolicy` scissors/knife (person อย่างเดียวไม่นับ) | เปิด |
 | `smoking` | `src/detectors/smoking.py` | `models/smoking/best.pt` | `LabelMatchPolicy` smoking/cigarette | เปิด (รันทุก 2 เฟรม) |
 | `climbing` | `src/detectors/climbing_pose.py` | `yolo11n-pose.pt` (pretrained ชั่วคราว) | `ClimbingPosePolicy` กฎเวอร์ชันแรกจาก `legacy/kids_acsident.py` | ปิด |
+| `fight` | ใช้ผล Pose ชุดเดียวกับ `climbing` (ไม่รันโมเดลเพิ่ม) | `yolo11n-pose.pt` | `FightPolicy` ใน `src/policies/fight.py` | ปิด (เปิดพร้อม climbing ด้วย `--modules climbing_pose`) |
 | `out_of_area` | ใช้กรอบ `person` จาก `hazard_object` (ไม่รันโมเดลเพิ่ม) | – | `OutOfAreaPolicy` ใน `src/policies/out_of_area.py` | เปิด (ทำงานเมื่อมีโซนใน `config/zones.yaml`) |
 
 ทั้งสอง detector แบบ YOLO ใช้ `src/detection/yolo_detector.py` เดิมผ่าน `src/detectors/yolo_label.py` โดยไม่แก้ไฟล์เดิม
@@ -77,7 +78,7 @@ python tools/check_adapters.py
 
 ```bash
 python run_core.py                      # ทุก module ที่เปิดใน config + หน้าต่างภาพ
-python run_core.py --modules smoking    # เลือกบาง module
+python run_core.py --modules smoking    # เลือกบาง module (ระบุชื่อ module ที่ปิดไว้ = เปิดเฉพาะรอบนี้)
 python run_core.py --source clip.mp4    # ใช้ไฟล์วิดีโอ / ภาพ / rtsp:// แทนกล้อง
 python run_core.py --console-only       # บังคับไม่ส่ง LINE ในรอบนี้
 ```
@@ -106,6 +107,20 @@ python tools/define_zone.py --name test --any-person                # ทดส�
 Backspace หรือคลิกขวา = ลบจุดล่าสุด, ESC = ยกเลิก
 
 ข้อจำกัด v1: ผู้ใหญ่ที่นั่งหรือย่อตัวในโซนจะถูกนับเป็นเด็ก, เด็กที่เดิน**เข้า**มาจากนอกโซนก็แจ้งเตือน (ยังไม่ดูทิศทาง), คนที่กรอบถูกขอบภาพตัดจะไม่ถูกวัด, กล้องต้องเห็นเท้า และยังไม่มีผลวัดความแม่นยำ
+
+## ทะเลาะวิวาท (Fight v1)
+
+แบบกฎ ไม่ต้องเทรน ใช้ keypoint จากโมเดล Pose และติดตามแต่ละคนข้ามเฟรมด้วย IoU แบบง่าย นับเป็นท่าทะเลาะเมื่อ
+
+1. คน 2 คนอยู่ชิดกัน (ระยะห่างของกรอบ ≤ `close_gap` × ความสูงเฉลี่ย ค่าเริ่มต้น 0.15)
+2. ข้อมือของคนหนึ่งเคลื่อนเร็ว ≥ `speed_threshold` ความสูงลำตัวต่อวินาที (ค่าเริ่มต้น 1.5)
+3. ข้อมือที่เร็วนั้นอยู่ในกรอบของอีกคน
+
+และต้องเกิดต่อเนื่อง ≥ 1 วินาที (`min_duration_s` ของ `fight`) กอดกัน = ชิดแต่ช้า, เต้นข้างกัน = เร็วแต่มือไม่เข้าตัวอีกคน, ไฮไฟว์ครั้งเดียว = สั้นเกิน จึงไม่แจ้งเตือน
+
+บนจอจะเห็น `id<N> spd <ความเร็ว>` บนกรอบคน ใช้ตัวเลขนี้จากคลิป QA ปรับ `speed_threshold` ใน `config/core.yaml`
+
+ข้อจำกัด: การเล่นปล้ำ หยอกล้อ จั๊กจี้ จะดูเหมือนทะเลาะ, คนที่บังกันจะไม่มี keypoint, ค่าตั้งต้นยังไม่ได้ปรับ และยังไม่มีผลวัดความแม่นยำ
 
 ## Event Schema 1.1
 

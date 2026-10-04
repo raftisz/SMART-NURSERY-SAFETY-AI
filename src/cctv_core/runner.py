@@ -49,12 +49,14 @@ def build_modules(cfg: dict[str, Any], only: set[str] | None = None) -> list[Mod
     """Build enabled modules from config (weights are NOT loaded here)."""
     modules: list[Module] = []
     for entry in cfg.get("modules") or []:
-        if entry.get("enabled", True) is False:
+        disabled = entry.get("enabled", True) is False
+        if disabled and not only:
             continue
         specs = entry.get("policies")
         if specs is None:
             specs = [entry["policy"]]
         module = Module(build_detector(entry["detector"]), [build_policy(p) for p in specs])
+        # --modules picks modules by name; naming a disabled one turns it on for this run
         if only and module.detector.name not in only:
             continue
         modules.append(module)
