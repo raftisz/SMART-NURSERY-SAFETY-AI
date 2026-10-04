@@ -6,6 +6,8 @@ cameras:
   - id: cam0
     name: "Notebook Camera"
     source: 0
+    width: 1280            # ทดสอบด้วยมือที่ 1280x720 (docs/eval/hazard_imgsz_manual.md)
+    height: 720
     flip: true             # กลับภาพซ้ายขวาเหมือน detect.py (เว็บแคมหันหน้าเข้าหาตัวเอง)
   # กล้องสมมติสำหรับคลิปทดสอบของ QA (tools/eval_clips.py) โซนของคลิป QA วาดด้วย
   #   python tools/define_zone.py --camera qa --source <คลิป> --name <ชื่อโซน>
@@ -21,7 +23,8 @@ cameras:
 modules:
   - detector:
       class: "src.detectors.hazard_object:HazardObjectDetector"
-      params: {weights: "yolo11n.pt", conf: 0.25, imgsz: 640, nms_iou: 0.5, run_every_n_frames: 1}
+      # imgsz 960: ของชิ้นเล็กได้ conf สูงขึ้นในการทดสอบด้วยมือ (docs/eval/hazard_imgsz_manual.md)
+      params: {weights: "yolo11n.pt", conf: 0.25, imgsz: 960, nms_iou: 0.5, run_every_n_frames: 1}
     # โมเดลเดียวส่งผลให้ 2 กฎ: ของมีคม + เด็กออกนอกพื้นที่ (ใช้กรอบ person ชุดเดียวกัน ไม่รันโมเดลเพิ่ม)
     policies:
       - class: "src.cctv_core.events.policies:LabelMatchPolicy"

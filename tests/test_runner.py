@@ -165,6 +165,15 @@ class ConfigModulesTests(unittest.TestCase):
         self.assertEqual([m.detector.name for m in modules], ["hazard_object", "smoking"])
         self.assertEqual(modules[1].detector.run_every_n_frames, 2)
 
+    def test_demo_camera_and_hazard_input_size(self):
+        """1280x720 capture + imgsz 960 for hazard (manual test, docs/eval/hazard_imgsz_manual.md)."""
+        cfg = load_config("config/core.yaml")
+        cam0 = next(c for c in cfg["cameras"] if c["id"] == "cam0")
+        self.assertEqual((cam0.get("width"), cam0.get("height")), (1280, 720))
+        modules = {m.detector.name: m.detector for m in build_modules(cfg)}
+        self.assertEqual(modules["hazard_object"].imgsz, 960)
+        self.assertEqual(modules["smoking"].imgsz, 640)        # unchanged
+
     def test_only_filter(self):
         modules = build_modules(load_config("config/core.yaml"), only={"smoking"})
         self.assertEqual([m.detector.name for m in modules], ["smoking"])
