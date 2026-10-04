@@ -36,7 +36,9 @@ class HeightModel:
     """Expected height of a STANDING ADULT as a function of where their feet are.
 
     Built from two reference measurements (an adult standing near the camera and
-    far from it); in between and beyond, the height is interpolated linearly.
+    far from it); in between, the height is interpolated linearly. Beyond them it
+    is extrapolated by at most half the calibrated span, then held constant, so a
+    bad or narrow calibration cannot produce absurd expected heights.
     Values are fractions of the image height.
     """
 
@@ -50,6 +52,9 @@ class HeightModel:
         if abs(dy) < 1e-6:
             return max(0.02, (self.near_height + self.far_height) / 2)
         slope = (self.near_height - self.far_height) / dy
+        lo, hi = sorted((self.far_foot_y, self.near_foot_y))
+        margin = (hi - lo) * 0.5
+        foot_y = min(max(foot_y, lo - margin), hi + margin)
         return max(0.02, self.far_height + slope * (foot_y - self.far_foot_y))
 
     @classmethod

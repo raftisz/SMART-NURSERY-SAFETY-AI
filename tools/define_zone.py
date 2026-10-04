@@ -59,11 +59,20 @@ def calibration_point(head, feet, w: int, h: int) -> tuple[float, float]:
     return round(foot_y, 4), round(height, 4)
 
 
+MIN_CALIBRATION_SPREAD = 0.05  # near and far feet must be >= 5% of the image height apart
+
+
 def build_zone(name, polygon_px, near_px, far_px, w, h, hours, any_person) -> Zone:
     calibration = None
     if not any_person:
         nf, nh = calibration_point(near_px[0], near_px[1], w, h)
         ff, fh = calibration_point(far_px[0], far_px[1], w, h)
+        if nf <= ff:
+            raise ValueError("เท้าของจุด 'ใกล้' ต้องอยู่ต่ำกว่าจุด 'ไกล' ในภาพ (อาจสลับขั้น 2 กับ 3)")
+        if nf - ff < MIN_CALIBRATION_SPREAD:
+            raise ValueError("จุด 'ใกล้' กับ 'ไกล' อยู่ใกล้กันเกินไป ให้ผู้ใหญ่ยืนห่างกันมากกว่านี้")
+        if nh <= fh:
+            raise ValueError("ผู้ใหญ่ที่ยืน 'ใกล้' ต้องดูสูงกว่าตอนยืน 'ไกล' ลองวาดใหม่")
         calibration = HeightModel(nf, nh, ff, fh)
     return Zone(name=name, polygon=normalise(polygon_px, w, h), active_hours=hours,
                 child_filter=not any_person, calibration=calibration)
@@ -178,16 +187,18 @@ def main() -> int:
     if points is None:
         return 1
     w, h = size
-    zone = build_zone(args.name, points["zone"], points.get("near"), points.get("far"),
-                      w, h, hours, args.any_person)
+    try:
+        zone = build_zone(args.name, points["zone"], points.get("near"), points.get("far"),
+                          w, h, hours, args.any_person)
+    except ValueError as exc:
+        print(f"ไม่ได้บันทึก: {exc}")
+        return 1
     path = resolve_path(args.zones_file)
     save_zone(path, str(cam["id"]), zone)
     print(f"\nบันทึกโซน '{zone.name}' ของกล้อง {cam['id']} ลง {args.zones_file} แล้ว")
     if zone.calibration:
         c = zone.calibration
         print(f"ปรับเทียบ: ใกล้ สูง {c.near_height:.2f} ของภาพ, ไกล สูง {c.far_height:.2f} ของภาพ")
-        if c.near_foot_y <= c.far_foot_y:
-            print("คำเตือน: จุด 'ใกล้' ควรอยู่ต่ำกว่าจุด 'ไกล' ในภาพ ลองวาดใหม่ถ้าสลับกัน")
     print("รันระบบได้ด้วย: python run_core.py")
     return 0
 

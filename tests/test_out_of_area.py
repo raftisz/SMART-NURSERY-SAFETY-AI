@@ -76,7 +76,12 @@ class ZoneTests(unittest.TestCase):
         self.assertAlmostEqual(m.expected(0.9), 0.6)
         self.assertAlmostEqual(m.expected(0.7), 0.45)   # in between
         self.assertAlmostEqual(m.expected(0.3), 0.15)   # extrapolated further away
-        self.assertEqual(m.expected(-5), 0.02)          # never zero or negative
+        self.assertGreater(m.expected(-5), 0.0)         # never zero or negative
+
+    def test_height_model_extrapolates_only_half_a_span(self):
+        m = HeightModel.from_dict(CAL)                  # calibrated between y 0.5 and 0.9
+        self.assertAlmostEqual(m.expected(-5), m.expected(0.3))
+        self.assertAlmostEqual(m.expected(5), m.expected(1.1))
 
     def test_save_and_load_keep_other_zones(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -162,6 +167,18 @@ class DefineZoneToolTests(unittest.TestCase):
     def test_bad_calibration_click(self):
         with self.assertRaises(ValueError):
             define_zone.calibration_point((5, 50), (9, 50), 100, 100)
+
+    def test_swapped_near_and_far_is_refused(self):
+        with self.assertRaises(ValueError):
+            define_zone.build_zone("gate", [(0, 0), (10, 0), (10, 10)],
+                                   [(600, 200), (600, 500)], [(700, 300), (700, 900)],
+                                   W, H, [], False)
+
+    def test_near_and_far_at_the_same_spot_is_refused(self):
+        with self.assertRaises(ValueError):
+            define_zone.build_zone("gate", [(0, 0), (10, 0), (10, 10)],
+                                   [(700, 300), (700, 900)], [(600, 310), (600, 890)],
+                                   W, H, [], False)
 
     def test_calibration_click_order_does_not_matter(self):
         head_first = define_zone.calibration_point((100, 100), (100, 400), 640, 480)
