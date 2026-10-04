@@ -39,6 +39,22 @@ class ClimbingRuleTests(unittest.TestCase):
     def test_too_few_keypoints(self):
         self.assertEqual(classify_pose(pose()[:10]), "NORMAL")
 
+    def test_lying_down_is_not_climbing(self):
+        # lying on a mat, head left, feet right, arms stretched past the head:
+        # wrist "above" the nose and ankle "above" the hips only by a few pixels
+        k = [Keypoint(0, 0, 0.9) for _ in range(17)]
+        k[0] = Keypoint(100, 300, 0.9)                              # nose
+        k[5], k[6] = Keypoint(150, 300, 0.9), Keypoint(150, 305, 0.9)  # shoulders
+        k[9], k[10] = Keypoint(60, 295, 0.9), Keypoint(60, 290, 0.9)   # wrists
+        k[11], k[12] = Keypoint(300, 305, 0.9), Keypoint(300, 300, 0.9)  # hips
+        k[15], k[16] = Keypoint(500, 298, 0.9), Keypoint(500, 302, 0.9)  # ankles
+        self.assertNotIn(classify_pose(k), ("DANGER", "WARNING"))
+
+    def test_hidden_hips_do_not_count_as_raised_feet(self):
+        k = pose()
+        k[11] = k[12] = Keypoint(0, 500, 0.05)  # hips occluded: position is a guess
+        self.assertEqual(classify_pose(k), "SAFE")
+
     def _output(self, kpts):
         d = Detection("person", 0.8, BBox(0, 0, 10, 10), keypoints=kpts)
         return DetectorOutput("climbing_pose", "cam0", 0, 1.0, [d])

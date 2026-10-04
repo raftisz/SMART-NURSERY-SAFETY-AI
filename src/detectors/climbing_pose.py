@@ -5,6 +5,10 @@ Rule = the FIRST version in the legacy notebook (analyze_climbing_risk):
   feet_climbing : an ankle above the average hip height (confidence > 0.3)
   both          -> "DANGER: CLIMBING DETECTED!"  -> event
   one of them   -> "WARNING: HIGH RISK POSE"     -> event only if require_both=False
+Two guards added on top of the legacy rule:
+  - a body whose shoulder-to-hip line is more horizontal than vertical is
+    LYING (e.g. nap time) and never counts as climbing
+  - hips below keypoint confidence are not used as the "feet raised" reference
 
 The project's custom pose weights live on the original author's Google Drive
 and are not in this repo; until they are added, pretrained yolo11n-pose.pt is
@@ -23,26 +27,46 @@ from src.cctv_core.schemas import (BBox, Detection, DetectorOutput, EventCandida
 from .yolo_label import resolve_weights
 
 # COCO-17 keypoint indices
-NOSE, L_WRIST, R_WRIST, L_HIP, R_HIP, L_ANKLE, R_ANKLE = 0, 9, 10, 11, 12, 15, 16
+NOSE, L_SHOULDER, R_SHOULDER = 0, 5, 6
+L_WRIST, R_WRIST, L_HIP, R_HIP, L_ANKLE, R_ANKLE = 9, 10, 11, 12, 15, 16
+
+
+def _midpoint(kpts: list[Keypoint], a: int, b: int, min_conf: float) -> tuple[float, float] | None:
+    """Mean position of the confident keypoints among a and b; None if neither is."""
+    pts = [kpts[i] for i in (a, b) if kpts[i].confidence > min_conf]
+    if not pts:
+        return None
+    return sum(p.x for p in pts) / len(pts), sum(p.y for p in pts) / len(pts)
+
+
+def is_lying(kpts: list[Keypoint], min_conf: float = 0.3) -> bool:
+    """True when the torso (shoulders -> hips) is more horizontal than vertical."""
+    shoulders = _midpoint(kpts, L_SHOULDER, R_SHOULDER, min_conf)
+    hips = _midpoint(kpts, L_HIP, R_HIP, min_conf)
+    if shoulders is None or hips is None:
+        return False  # orientation unknown: fall back to the legacy rule
+    return abs(shoulders[0] - hips[0]) > abs(shoulders[1] - hips[1])
 
 
 def classify_pose(kpts: list[Keypoint], min_conf: float = 0.3) -> str:
-    """Port of legacy analyze_climbing_risk (version 1). Returns DANGER/WARNING/SAFE/NORMAL.
+    """Port of legacy analyze_climbing_risk (version 1). Returns DANGER/WARNING/SAFE/LYING/NORMAL.
 
     Image y grows downwards, so "above" means a smaller y.
     """
     if len(kpts) < 17:
         return "NORMAL"
+    if is_lying(kpts, min_conf):
+        return "LYING"
     nose = kpts[NOSE]
     nose_y = nose.y if nose.confidence > min_conf else None
-    avg_hip_y = (kpts[L_HIP].y + kpts[R_HIP].y) / 2.0
+    hips = _midpoint(kpts, L_HIP, R_HIP, min_conf)
 
     hands_up = False
     if nose_y is not None:
         hands_up = any(kpts[i].y < nose_y and kpts[i].confidence > min_conf
                        for i in (L_WRIST, R_WRIST))
-    feet_climbing = any(kpts[i].y < avg_hip_y and kpts[i].confidence > min_conf
-                        for i in (L_ANKLE, R_ANKLE))
+    feet_climbing = hips is not None and any(
+        kpts[i].y < hips[1] and kpts[i].confidence > min_conf for i in (L_ANKLE, R_ANKLE))
 
     if hands_up and feet_climbing:
         return "DANGER"

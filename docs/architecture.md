@@ -60,7 +60,7 @@
 |---|---|---|---|---|
 | `hazard_object` | `src/detectors/hazard_object.py` | `yolo11n.pt` (COCO, ดาวน์โหลดอัตโนมัติ) | `LabelMatchPolicy` scissors/knife (person อย่างเดียวไม่นับ) | เปิด |
 | `smoking` | `src/detectors/smoking.py` | `models/smoking/best.pt` | `LabelMatchPolicy` smoking/cigarette | เปิด (รันทุก 2 เฟรม) |
-| `climbing` | `src/detectors/climbing_pose.py` | `yolo11n-pose.pt` (pretrained ชั่วคราว) | `ClimbingPosePolicy` กฎเวอร์ชันแรกจาก `legacy/kids_acsident.py` | ปิด |
+| `climbing` | `src/detectors/climbing_pose.py` | `yolo11n-pose.pt` (pretrained ชั่วคราว) | `ClimbingPosePolicy` กฎเวอร์ชันแรกจาก `legacy/kids_acsident.py` (เพิ่ม: ท่านอนราบไม่นับ, ไม่ใช้สะโพกที่ confidence ต่ำ) | ปิด |
 | `fight` | ใช้ผล Pose ชุดเดียวกับ `climbing` (ไม่รันโมเดลเพิ่ม) | `yolo11n-pose.pt` | `FightPolicy` ใน `src/policies/fight.py` | ปิด (เปิดพร้อม climbing ด้วย `--modules climbing_pose`) |
 | `out_of_area` | ใช้กรอบ `person` จาก `hazard_object` (ไม่รันโมเดลเพิ่ม) | – | `OutOfAreaPolicy` ใน `src/policies/out_of_area.py` | เปิด (ทำงานเมื่อมีโซนใน `config/zones.yaml`) |
 
