@@ -92,6 +92,30 @@ class FightRuleTests(unittest.TestCase):
             frames.append((t / 10, [a, person(300)]))
         self.assertFalse(any(run_seq(p, frames)))
 
+    def test_left_right_label_swap_is_not_speed(self):
+        # A stands still, one wrist in B's box. The pose model swaps the L/R
+        # labels every frame, which used to look like a wrist jumping 225 px.
+        p = FightPolicy()
+        frames = []
+        for t in range(12):
+            a = person(100)
+            near_b, own = Keypoint(330, 250, 0.9), Keypoint(105, 250, 0.9)
+            a.keypoints[9], a.keypoints[10] = (near_b, own) if t % 2 else (own, near_b)
+            frames.append((t / 10, [a, person(300)]))
+        self.assertFalse(any(run_seq(p, frames)))
+
+    def test_track_identity_swap_is_not_speed(self):
+        # Two still people almost on top of each other; their boxes jitter so the
+        # IoU tracker swaps identities every frame. Each wrist is still.
+        p = FightPolicy()
+        frames = []
+        for t in range(12):
+            a, b = person(100, wrist=(300, 250)), person(110, wrist=(120, 250))
+            if t % 2:
+                a.bbox, b.bbox = BBox(110, 100, 310, 500), BBox(100, 100, 300, 500)
+            frames.append((t / 10, [a, b]))
+        self.assertFalse(any(run_seq(p, frames)))
+
     def test_speed_shown_on_people(self):
         p = FightPolicy()
         a = person(100)

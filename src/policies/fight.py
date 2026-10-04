@@ -10,9 +10,16 @@ Why each part: hugging is close but slow; dancing side by side is fast but the
 hands stay out of the other's box; a single high-five is fast and reaching but
 brief, so the duration filter drops it.
 
+Two guards against fake speed: if the pose model swaps the left/right wrist
+labels, the labels are matched back to the previous positions; and if the
+tracker's match for a person is ambiguous (two boxes almost on top of each
+other, so identities may have swapped), that person's wrist history restarts.
+
 Known limits: rough play, wrestling games and tickling look like fighting;
-people hidden behind each other lose keypoints; thresholds are starting
-values to be tuned on QA clips. No accuracy claim until measured.
+people hidden behind each other lose keypoints; heavily overlapping people
+reset their speed history every frame, so a fight in a tight clinch may be
+missed; thresholds are starting values to be tuned on QA clips. No accuracy
+claim until measured.
 """
 
 from __future__ import annotations
@@ -42,6 +49,10 @@ def box_gap(a: BBox, b: BBox) -> float:
     return (dx * dx + dy * dy) ** 0.5
 
 
+def _dist(a: tuple[float, float], b: tuple[float, float]) -> float:
+    return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
+
+
 def inside(x: float, y: float, b: BBox, margin: float) -> bool:
     mx, my = b.width * margin, b.height * margin
     return b.x1 - mx <= x <= b.x2 + mx and b.y1 - my <= y <= b.y2 + my
@@ -54,22 +65,26 @@ class Track:
     last_t: float
     # (t, wrist index, x, y) for confident wrists
     wrists: deque = field(default_factory=lambda: deque(maxlen=60))
+    #: True when this frame's match was ambiguous (identity may have swapped)
+    ambiguous: bool = False
 
 
 class SimpleTracker:
     """Greedy IoU matching; enough for a handful of people in one room."""
 
-    def __init__(self, iou_min: float = 0.2, max_age_s: float = 1.0):
+    def __init__(self, iou_min: float = 0.2, max_age_s: float = 1.0, ambiguity_margin: float = 0.2):
         self.iou_min = iou_min
         self.max_age_s = max_age_s
+        self.ambiguity_margin = ambiguity_margin
         self.tracks: dict[int, Track] = {}
         self._ids = count(1)
 
     def update(self, dets: list[Detection], t: float) -> list[Track]:
         for tid in [k for k, tr in self.tracks.items() if t - tr.last_t > self.max_age_s]:
             del self.tracks[tid]
-        pairs = sorted(((iou(tr.bbox, d.bbox), tid, i) for tid, tr in self.tracks.items()
-                        for i, d in enumerate(dets)), reverse=True)
+        ious = {(tid, i): iou(tr.bbox, d.bbox) for tid, tr in self.tracks.items()
+                for i, d in enumerate(dets)}
+        pairs = sorted(((score, tid, i) for (tid, i), score in ious.items()), reverse=True)
         used_t, used_d, out = set(), set(), [None] * len(dets)
         for score, tid, i in pairs:
             if score < self.iou_min or tid in used_t or i in used_d:
@@ -82,6 +97,13 @@ class SimpleTracker:
                 tr = Track(next(self._ids), d.bbox, t)
                 self.tracks[tr.track_id] = tr
                 out[i] = tr
+            else:
+                tid = out[i].track_id
+                best = ious[(tid, i)]
+                # rivals: this track vs other boxes, or this box vs other tracks
+                rivals = [s for (t2, j), s in ious.items() if (t2 == tid) != (j == i)]
+                out[i].ambiguous = any(s >= self.iou_min and best - s < self.ambiguity_margin
+                                       for s in rivals)
             out[i].bbox, out[i].last_t = d.bbox, t
             d.track_id = out[i].track_id
         return out
@@ -108,10 +130,23 @@ class FightPolicy(EventPolicy):
         self._trackers: dict[str, SimpleTracker] = {}
 
     def _record_wrists(self, tr: Track, d: Detection, t: float) -> None:
+        cur = {}
         for w in (L_WRIST, R_WRIST):
             if d.keypoints and len(d.keypoints) > w and d.keypoints[w].confidence > self.keypoint_conf:
-                k = d.keypoints[w]
-                tr.wrists.append((t, w, k.x, k.y))
+                cur[w] = (d.keypoints[w].x, d.keypoints[w].y)
+        if len(cur) == 2:
+            last: dict[int, tuple[float, float]] = {}
+            for s in reversed(tr.wrists):
+                last.setdefault(s[1], (s[2], s[3]))
+                if len(last) == 2:
+                    break
+            if len(last) == 2:
+                straight = _dist(cur[L_WRIST], last[L_WRIST]) + _dist(cur[R_WRIST], last[R_WRIST])
+                crossed = _dist(cur[L_WRIST], last[R_WRIST]) + _dist(cur[R_WRIST], last[L_WRIST])
+                if crossed < straight:  # the pose model swapped left and right
+                    cur = {L_WRIST: cur[R_WRIST], R_WRIST: cur[L_WRIST]}
+        for w, (x, y) in cur.items():
+            tr.wrists.append((t, w, x, y))
 
     def fast_wrists(self, tr: Track, t: float) -> tuple[float, list[tuple[float, float]]]:
         """(top speed, positions of wrists currently moving faster than the threshold)."""
@@ -143,6 +178,8 @@ class FightPolicy(EventPolicy):
         t = output.timestamp
         tracks = tracker.update(people, t)
         for tr, d in zip(tracks, people):
+            if tr.ambiguous:
+                tr.wrists.clear()  # identity may have swapped: old samples may be someone else's
             # forget samples older than twice the window
             while tr.wrists and t - tr.wrists[0][0] > 2 * self.speed_window_s:
                 tr.wrists.popleft()
