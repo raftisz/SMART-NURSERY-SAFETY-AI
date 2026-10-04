@@ -101,6 +101,21 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(good.calls, 30)
         self.assertEqual(stats.confirmed, 1)
 
+    def test_failing_module_leaves_no_stale_boxes_and_shows_errors(self):
+        class BreaksLater(FakeDetector):
+            name = "boom"
+
+            def process(self, frame):
+                if frame.frame_index >= 5:
+                    raise RuntimeError("model crashed")
+                return super().process(frame)
+
+        runner = Runner(FakeSource(10), [Module(BreaksLater(), LabelMatchPolicy("x", ["none"]))],
+                        self.events, display=False, clock=Clock())
+        runner.run()
+        self.assertNotIn("boom", runner._last_output)  # old boxes are not drawn forever
+        self.assertIn("boom ERR 5", runner.status_text())
+
     def test_load_failure_cleans_up_and_names_the_module(self):
         class NoWeights(FakeDetector):
             name = "climbing_pose"

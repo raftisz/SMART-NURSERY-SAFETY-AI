@@ -189,6 +189,7 @@ class Runner:
             candidates = [c for p in m.policies for c in p.evaluate(output)]
         except Exception as exc:  # one broken module must not stop the others
             self.stats.errors[name] += 1
+            self._last_output.pop(name, None)  # never keep drawing boxes from before the error
             if name not in self._error_reported:
                 print(f"[CORE] {name} error {type(exc).__name__}: {exc} (further errors counted only)")
                 self._error_reported.add(name)
@@ -209,6 +210,18 @@ class Runner:
                 print(f"[EVENT] {event.status.value} {event.event_type}{where} @ {event.camera_id} "
                       f"(peak {event.peak_confidence:.2f})")
 
+    def status_text(self) -> str:
+        """Status bar: FPS, per-module time, module error counts, open events."""
+        elapsed = max(1e-6, time.perf_counter() - self._start_perf)
+        parts = [f"{self.stats.frames / elapsed:.1f} FPS"]
+        for name, times in self.stats.infer_ms.items():
+            recent = times[-30:]
+            parts.append(f"{name} {statistics.median(recent):.0f}ms")
+        for name, count in self.stats.errors.items():
+            parts.append(f"{name} ERR {count}")
+        parts.append(f"open events {len(self.events.manager.open_events)}")
+        return " | ".join(parts)
+
     def _show(self, image: Any) -> bool:
         """Draw the latest output of every module and a status bar. True = quit."""
         import cv2
@@ -219,14 +232,8 @@ class Runner:
                 p.draw(view, self.camera_id)
         for output in self._last_output.values():
             draw_output(view, output)
-        elapsed = max(1e-6, time.perf_counter() - self._start_perf)
-        parts = [f"{self.stats.frames / elapsed:.1f} FPS"]
-        for name, times in self.stats.infer_ms.items():
-            recent = times[-30:]
-            parts.append(f"{name} {statistics.median(recent):.0f}ms")
-        parts.append(f"open events {len(self.events.manager.open_events)}")
         cv2.rectangle(view, (0, 0), (view.shape[1], 28), (28, 28, 28), -1)
-        cv2.putText(view, " | ".join(parts), (8, 19), cv2.FONT_HERSHEY_SIMPLEX,
+        cv2.putText(view, self.status_text(), (8, 19), cv2.FONT_HERSHEY_SIMPLEX,
                     0.55, (255, 255, 255), 1)
         cv2.imshow(self.window_name, view)
         key = cv2.waitKeyEx(1)
