@@ -7,6 +7,13 @@ cameras:
     name: "Notebook Camera"
     source: 0
     flip: true             # กลับภาพซ้ายขวาเหมือน detect.py (เว็บแคมหันหน้าเข้าหาตัวเอง)
+  # กล้องสมมติสำหรับคลิปทดสอบของ QA (tools/eval_clips.py) โซนของคลิป QA วาดด้วย
+  #   python tools/define_zone.py --camera qa --source <คลิป> --name <ชื่อโซน>
+  # run_core.py ใช้กล้องตัวแรก (cam0) เสมอ ถ้าไม่ได้ระบุ --camera
+  - id: qa
+    name: "QA clips"
+    source: ""
+    flip: false
 
 # Detection modules: detector + policy คู่กัน
 #   enabled: false = ปิด module นั้น

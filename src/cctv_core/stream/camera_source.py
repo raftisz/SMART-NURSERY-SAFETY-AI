@@ -77,6 +77,14 @@ class CameraSource:
         return cv2.VideoCapture(self.source)
 
     @property
+    def fps(self) -> float | None:
+        """Frame rate reported by a video file or stream; None if unknown (image, some webcams)."""
+        if self._cap is None:
+            return None
+        value = float(self._cap.get(self._cv2.CAP_PROP_FPS) or 0.0)
+        return value if value > 0 else None
+
+    @property
     def is_live(self) -> bool:
         return self.is_webcam or self.is_stream
 
