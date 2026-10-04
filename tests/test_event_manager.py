@@ -86,6 +86,26 @@ class EventManagerTests(unittest.TestCase):
         self.assertIs(ev.status, EventStatus.CONFIRMED)
         self.assertEqual(len(self.disp.events), 2)
 
+    def test_suppressed_event_notifies_once_cooldown_ends(self):
+        for t in (0.0, 0.5, 1.0):
+            self.mgr.submit(cand(t))
+        self.mgr.tick(12.0)                      # first event closes
+        for t in (15.0, 15.5, 16.0):             # second event starts inside the cooldown
+            self.mgr.submit(cand(t))
+        promoted = None
+        t = 16.5
+        while t <= 60.0:                         # ...and is still seen after the cooldown ends
+            ev = self.mgr.submit(cand(t))
+            if ev is not None and promoted is None:
+                promoted = (t, ev)
+            t += 0.5
+        self.assertIsNotNone(promoted)
+        at, ev = promoted
+        self.assertGreaterEqual(at, 30.0)        # not before the cooldown is over
+        self.assertIs(ev.status, EventStatus.CONFIRMED)
+        self.assertEqual(len(self.disp.events), 2)  # once, not on every later sighting
+        self.assertEqual(self.store.get(ev.event_id)["status"], "CONFIRMED")
+
     def test_cameras_are_independent(self):
         for t in (0.0, 0.5, 1.0):
             self.mgr.submit(cand(t, cam="cam0"))

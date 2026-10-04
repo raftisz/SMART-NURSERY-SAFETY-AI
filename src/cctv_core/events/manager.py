@@ -10,6 +10,7 @@ Flow per (camera_id, event_type, subject):
                  (and, if min_duration_s > 0, seen continuously for that long;
                   a gap longer than max_gap_s restarts the count)
                  -> CONFIRMED (notify)  or  SUPPRESSED (inside cooldown, stored only)
+              -> a SUPPRESSED event still seen after the cooldown -> CONFIRMED (notify)
               -> not seen for close_after_s -> CLOSED
     A CANDIDATE that times out without confirming is discarded.
 """
@@ -120,28 +121,26 @@ class EventManager:
             if candidate.extra:
                 event.extra.update(candidate.extra)
 
-            if event.status is not EventStatus.CANDIDATE:
-                return None
-
-            hits = self._hits[key]
-            if cfg.min_duration_s > 0 and hits and now - hits[-1] > cfg.max_gap_s:
-                hits.clear()                 # sighting was interrupted: start again
-                self._streak[key] = now
-            hits.append(now)
-            while hits and now - hits[0] > cfg.confirm_window_s:
-                hits.popleft()
-            if len(hits) < cfg.confirm_hits:
-                return None
-            if cfg.min_duration_s > 0 and now - self._streak[key] < cfg.min_duration_s:
-                return None
-
-            event.confirmed_at = now
-            last = self._last_notified.get(key)
-            if last is not None and now - last < cfg.cooldown_s:
-                event.status = EventStatus.SUPPRESSED
-            else:
+            if event.status is EventStatus.SUPPRESSED:
+                # Still seen after the cooldown ended: notify now instead of staying silent.
+                last = self._last_notified.get(key)
+                if last is not None and now - last < cfg.cooldown_s:
+                    return None
                 event.status = EventStatus.CONFIRMED
+                event.confirmed_at = now
                 self._last_notified[key] = now
+            elif event.status is not EventStatus.CANDIDATE:
+                return None
+            else:
+                if not self._confirm_locked(key, cfg, now):
+                    return None
+                event.confirmed_at = now
+                last = self._last_notified.get(key)
+                if last is not None and now - last < cfg.cooldown_s:
+                    event.status = EventStatus.SUPPRESSED
+                else:
+                    event.status = EventStatus.CONFIRMED
+                    self._last_notified[key] = now
 
         # Outside the lock: file and network work must not block other submits.
         if self.snapshots is not None and image is not None:
@@ -151,6 +150,21 @@ class EventManager:
         if event.status is EventStatus.CONFIRMED and self.dispatcher is not None:
             self.dispatcher.dispatch(event)
         return event
+
+    def _confirm_locked(self, key: tuple, cfg: EventTypeConfig, now: float) -> bool:
+        """Record one sighting of a CANDIDATE; True once it meets the confirmation rule."""
+        hits = self._hits[key]
+        if cfg.min_duration_s > 0 and hits and now - hits[-1] > cfg.max_gap_s:
+            hits.clear()                 # sighting was interrupted: start again
+            self._streak[key] = now
+        hits.append(now)
+        while hits and now - hits[0] > cfg.confirm_window_s:
+            hits.popleft()
+        if len(hits) < cfg.confirm_hits:
+            return False
+        if cfg.min_duration_s > 0 and now - self._streak[key] < cfg.min_duration_s:
+            return False
+        return True
 
     # -- closing -----------------------------------------------------------
 
