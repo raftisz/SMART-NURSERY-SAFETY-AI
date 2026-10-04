@@ -21,6 +21,10 @@ Scoring per event type T, one row per clip:
     clip expects T and T fired -> TP;  expects T, not fired -> FN
     clip does not expect T but T fired -> FP clip (+ every such event counts toward FP/hour)
 Processing FPS here is NOT gate-valid (no display, file input).
+
+Decision gates (docs/eval/decision_gates_outarea_fight.md) are judged on the
+test split only, per clip subgroup = the first word after the clip number,
+e.g. outarea_pos_s2_03_crouchstay_door.mp4 -> outarea / pos / crouchstay.
 """
 
 from __future__ import annotations
@@ -245,6 +249,76 @@ class Evaluator:
 
 
 # --------------------------------------------------------------------------
+# Decision gates (approved 2026-10-04, before any s2 result)
+# --------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class GateRule:
+    text: str
+    module: str        # clip-name module, e.g. "outarea"
+    polarity: str      # "pos" / "neg"
+    group: str         # clip-name subgroup
+    event_type: str
+    count: str         # what is counted per clip: "alerted" or "silent"
+    op: str            # ">=" or "<="
+    k: int
+    n: int             # exact number of clips the gate is defined on
+
+
+GATES: tuple[GateRule, ...] = (
+    GateRule("out_of_area: crouching in zone > 3 s alerts", "outarea", "pos", "crouchstay",
+             "out_of_area", "alerted", ">=", 8, 10),
+    GateRule("out_of_area: adult upright in zone, false alarms", "outarea", "neg", "adultstand",
+             "out_of_area", "alerted", "<=", 1, 10),
+    GateRule("out_of_area: quick crouching pass < 2 s, no alert", "outarea", "neg", "crouchpass",
+             "out_of_area", "silent", ">=", 9, 10),
+    GateRule("fight: staged fight alerts", "fight", "pos", "staged", "fight", "alerted", ">=", 4, 6),
+    GateRule("fight: everyday activity, false alarms", "fight", "neg", "daily", "fight", "alerted", "<=", 2, 8),
+)
+
+
+def clip_tags(path: str) -> tuple[str, str, str] | None:
+    """('outarea', 'pos', 'crouchstay') from the file name, None if it has no subgroup."""
+    parts = Path(path).stem.lower().split("_")
+    if len(parts) < 5:
+        return None
+    return parts[0], parts[1], parts[4]
+
+
+@dataclass
+class GateResult:
+    rule: GateRule
+    clips: int
+    counted: int       # clips matching rule.count
+    ran: bool = True   # False: no module in this run produces rule.event_type
+
+    @property
+    def status(self) -> str:
+        if not self.ran:
+            return "NOT RUN"
+        if self.clips < self.rule.n:
+            return "INCOMPLETE"
+        if self.clips > self.rule.n:
+            return "CHECK"     # the gate is defined on exactly n clips
+        ok = self.counted >= self.rule.k if self.rule.op == ">=" else self.counted <= self.rule.k
+        return "PASS" if ok else "FAIL"
+
+
+def evaluate_gates(results: list[ClipResult], available: set[str] | None = None) -> list[GateResult]:
+    """`available` = event types the run's policies can produce (None = assume all)."""
+    out = []
+    for rule in GATES:
+        clips = [r for r in results if r.clip.split == "test"
+                 and clip_tags(r.clip.path) == (rule.module, rule.polarity, rule.group)]
+        alerted = sum(1 for r in clips if r.fired.get(rule.event_type, 0) > 0)
+        counted = alerted if rule.count == "alerted" else len(clips) - alerted
+        ran = available is None or rule.event_type in available
+        out.append(GateResult(rule, len(clips), counted, ran))
+    return out
+
+
+# --------------------------------------------------------------------------
 # Scoring and reports
 # --------------------------------------------------------------------------
 
@@ -284,7 +358,7 @@ def score(results: list[ClipResult]) -> dict[str, TypeScore]:
 
 
 def write_report(results: list[ClipResult], scores: dict[str, TypeScore], out_dir: Path,
-                 tag: str, meta: list[str]) -> tuple[Path, Path]:
+                 tag: str, meta: list[str], gates: list[GateResult] | None = None) -> tuple[Path, Path]:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     clips_csv = out_dir / f"{tag}_clips.csv"
@@ -310,6 +384,16 @@ def write_report(results: list[ClipResult], scores: dict[str, TypeScore], out_di
         pos = s.tp + s.fn
         lines.append(f"| {t} | {s.tp}/{pos} | {s.fp_clips}/{s.neg_clips} | {s.fp_events} | "
                      f"{s.fp_per_hour:.1f} (on {s.neg_seconds / 60:.1f} min) |")
+    if gates:
+        lines += ["", "## Decision gates (docs/eval/decision_gates_outarea_fight.md, test split only)", "",
+                  "| criterion | clips | counted | needed | result |", "|---|---|---|---|---|"]
+        for g in gates:
+            sign = "≥" if g.rule.op == ">=" else "≤"
+            lines.append(f"| {g.rule.text} | {g.clips}/{g.rule.n} | {g.counted}/{g.clips} {g.rule.count} | "
+                         f"{sign} {g.rule.k}/{g.rule.n} | **{g.status}** |")
+        lines += ["", "INCOMPLETE = fewer clips than the gate needs (not a pass); "
+                  "CHECK = more clips than the gate is defined on; "
+                  "NOT RUN = the module for this event type was off in this run."]
     lines += ["", "Counts are clips, not percentages: small numbers, read them as such.",
               "Processing speed in this run is not gate-valid (file input, no display).", ""]
     summary.write_text("\n".join(lines), encoding="utf-8")
@@ -373,7 +457,10 @@ def main() -> int:
 
     meta = [f"date: {datetime.now():%Y-%m-%d %H:%M}", f"config: {args.config}",
             f"labels: {args.labels} (split {args.split})", f"camera: {args.camera}"] + ev.model_info()
-    clips_csv, summary = write_report(results, score(results), resolve_path(args.out), args.tag, meta)
+    produced = {getattr(p, "event_type", None) for m in build_modules(ev.cfg, only) for p in m.policies}
+    gates = evaluate_gates(results, available=produced) if args.split == "test" else None
+    clips_csv, summary = write_report(results, score(results), resolve_path(args.out), args.tag, meta,
+                                      gates=gates)
     print(summary.read_text(encoding="utf-8"))
     print(f"[EVAL] wrote {clips_csv} and {summary}")
     return 0

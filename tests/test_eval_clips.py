@@ -160,6 +160,65 @@ class ScoreTests(unittest.TestCase):
         self.assertEqual(s["smoking"].neg_clips, 4)                 # nobody expected smoking
 
 
+def gate_results(group, n, fired, module="outarea", polarity="pos", event="out_of_area"):
+    out = []
+    for i in range(1, n + 1):
+        name = f"{module}_{polarity}_s2_{i:02d}_{group}_x.mp4"
+        expected = {event} if polarity == "pos" else set()
+        out.append(ClipResult(Clip(f"/clips/{name}", "test", expected),
+                              {event: 1} if i <= fired else {}, 5.0, 50))
+    return out
+
+
+class GateTests(unittest.TestCase):
+    def results(self):
+        return (gate_results("crouchstay", 10, 8)                               # 8/10 alert -> PASS
+                + gate_results("adultstand", 10, 2, polarity="neg")             # 2/10 false -> FAIL
+                + gate_results("crouchpass", 9, 0, polarity="neg")              # only 9 clips -> INCOMPLETE
+                + gate_results("staged", 6, 4, module="fight", event="fight")   # 4/6 -> PASS
+                + gate_results("daily", 8, 2, module="fight", polarity="neg", event="fight"))  # 2/8 -> PASS
+
+    def test_each_gate_status(self):
+        status = {g.rule.group: g.status for g in eval_clips.evaluate_gates(self.results())}
+        self.assertEqual(status, {"crouchstay": "PASS", "adultstand": "FAIL", "crouchpass": "INCOMPLETE",
+                                  "staged": "PASS", "daily": "PASS"})
+
+    def test_gate_whose_event_type_was_not_run_is_not_judged(self):
+        rows = eval_clips.evaluate_gates(self.results(), available={"out_of_area"})
+        status = {g.rule.group: g.status for g in rows}
+        self.assertEqual(status["staged"], "NOT RUN")       # fight needs the pose module
+        self.assertEqual(status["crouchstay"], "PASS")
+
+    def test_extra_clips_need_checking(self):
+        rows = eval_clips.evaluate_gates(gate_results("staged", 7, 7, module="fight", event="fight"))
+        self.assertEqual(next(g for g in rows if g.rule.group == "staged").status, "CHECK")
+
+    def test_tune_clips_never_count(self):
+        tune = gate_results("staged", 6, 6, module="fight", event="fight")
+        for r in tune:
+            r.clip.split = "tune"
+        rows = eval_clips.evaluate_gates(tune)
+        self.assertEqual(next(g for g in rows if g.rule.group == "staged").status, "INCOMPLETE")
+
+    def test_report_has_a_gate_section(self):
+        import tempfile
+
+        res = self.results()
+        with tempfile.TemporaryDirectory() as tmp:
+            _, summary = eval_clips.write_report(res, eval_clips.score(res), Path(tmp), "t", [],
+                                                 gates=eval_clips.evaluate_gates(res))
+            text = summary.read_text(encoding="utf-8")
+        self.assertIn("Decision gates", text)
+        self.assertIn("FAIL", text)
+        self.assertIn("2/10", text)
+
+    def test_gate_numbers_match_the_approved_document(self):
+        doc = Path("docs/eval/decision_gates_outarea_fight.md").read_text(encoding="utf-8")
+        for rule in eval_clips.GATES:
+            sign = "≥" if rule.op == ">=" else "≤"
+            self.assertIn(f"{sign} {rule.k}/{rule.n}", doc, rule.text)
+
+
 class RunClipTests(unittest.TestCase):
     def test_eval_config_never_sends_line_and_leaves_input_alone(self):
         cfg = eval_clips.eval_config(FAKE_CFG)
