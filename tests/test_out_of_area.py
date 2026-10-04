@@ -95,8 +95,14 @@ class ZoneTests(unittest.TestCase):
             self.assertEqual(len(zones["cam1"]), 1)
             self.assertEqual(load_zones(Path(tmp) / "missing.yaml"), {})
 
-    def test_repo_zones_file_is_valid_and_empty(self):
-        self.assertEqual(load_zones("config/zones.yaml"), {})
+    def test_repo_zones_file_is_valid(self):
+        # zones are drawn per site with tools/define_zone.py, so the file may hold any
+        # number of them; it only has to load (Zone validates points and hours)
+        zones = load_zones("config/zones.yaml")
+        for cam, zs in zones.items():
+            self.assertIsInstance(cam, str)
+            for z in zs:
+                self.assertGreaterEqual(len(z.polygon), 3)
 
 
 class PolicyTests(unittest.TestCase):
