@@ -20,7 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from src.cctv_core.factory import DEFAULT_CORE_CONFIG, build_event_system  # noqa: E402
-from src.cctv_core.runner import Runner, build_modules  # noqa: E402
+from src.cctv_core.runner import ModuleLoadError, Runner, build_modules  # noqa: E402
 from src.cctv_core.stream.camera_source import CameraSource  # noqa: E402
 from src.utils.config import load_config, resolve_path  # noqa: E402
 
@@ -71,7 +71,13 @@ def main() -> int:
 
     runner = Runner(source, modules, events, camera_id=str(cam["id"]),
                     display=not args.no_display, max_frames=args.max_frames)
-    stats = runner.run()
+    try:
+        stats = runner.run()
+    except ModuleLoadError as exc:
+        print(f"[CORE] {exc}")
+        print("[CORE] weights not in the repo (e.g. yolo11n-pose.pt) are downloaded on first use "
+              "and need internet - download them before the demo, or leave that module off")
+        return 1
 
     print("-" * 60)
     print(f"frames {stats.frames} in {stats.seconds:.1f}s -> {stats.fps:.1f} FPS (end-to-end)")

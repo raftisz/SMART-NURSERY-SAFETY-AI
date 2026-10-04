@@ -29,6 +29,14 @@ COLORS = {
 DEFAULT_COLOR = (255, 160, 0)
 
 
+class ModuleLoadError(RuntimeError):
+    """A detector could not load its model (missing weights, no internet to download...)."""
+
+    def __init__(self, name: str, cause: BaseException):
+        super().__init__(f"module '{name}' failed to load: {type(cause).__name__}: {cause}")
+        self.module_name = name
+
+
 @dataclass
 class Module:
     """One detector and the rule(s) that read its output.
@@ -121,11 +129,16 @@ class Runner:
         self._start_perf = time.perf_counter()
 
     def run(self) -> RunStats:
-        for m in self.modules:
-            m.detector.load()
+        """Load every model, then loop. Raises ModuleLoadError (after cleaning up)."""
         started = time.perf_counter()
-        self._start_perf = started
         try:
+            for m in self.modules:
+                try:
+                    m.detector.load()
+                except Exception as exc:
+                    raise ModuleLoadError(m.detector.name, exc) from exc
+            started = time.perf_counter()
+            self._start_perf = started
             self._loop()
         except KeyboardInterrupt:
             print("\n[CORE] stopped (Ctrl+C)")

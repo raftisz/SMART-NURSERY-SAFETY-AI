@@ -8,7 +8,7 @@ import numpy as np
 from src.cctv_core.events.policies import LabelMatchPolicy
 from src.cctv_core.events.snapshot import SnapshotWriter
 from src.cctv_core.factory import build_event_system
-from src.cctv_core.runner import Module, Runner, build_modules
+from src.cctv_core.runner import Module, ModuleLoadError, Runner, build_modules
 from src.cctv_core.stream.camera_source import CameraSource
 from src.utils.config import load_config
 from tests.fakes import FakeDetector
@@ -100,6 +100,23 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(stats.errors["boom"], 30)
         self.assertEqual(good.calls, 30)
         self.assertEqual(stats.confirmed, 1)
+
+    def test_load_failure_cleans_up_and_names_the_module(self):
+        class NoWeights(FakeDetector):
+            name = "climbing_pose"
+
+            def load(self):
+                raise FileNotFoundError("yolo11n-pose.pt")
+
+        src = FakeSource(10)
+        shutdown = mock.Mock(wraps=self.events.shutdown)
+        self.events.shutdown = shutdown
+        with self.assertRaises(ModuleLoadError) as ctx:
+            Runner(src, [Module(NoWeights(), LabelMatchPolicy("x", ["none"]))],
+                   self.events, display=False, clock=Clock()).run()
+        self.assertIn("climbing_pose", str(ctx.exception))
+        self.assertTrue(src.released)          # camera handed back
+        shutdown.assert_called_once()          # event system closed
 
     def test_max_frames(self):
         det = CountingDetector()
