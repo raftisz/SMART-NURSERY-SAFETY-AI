@@ -6,12 +6,10 @@ import numpy as np
 
 from src.cctv_core.events.manager import EventManager, EventTypeConfig
 from src.cctv_core.events.policies import LabelMatchPolicy
-from src.cctv_core.factory import build_event_system
 from src.cctv_core.notifications.templates import format_message
 from src.cctv_core.runner import Module, Runner, build_modules
 from src.cctv_core.schemas import EventCandidate, EventStatus
-from src.utils.config import load_config
-from tests.fakes import RecordingDispatcher, det
+from tests.fakes import RecordingDispatcher, det, temp_event_system
 from tests.test_runner import Clock, CountingDetector, FakeSource
 
 
@@ -85,8 +83,7 @@ class SubjectTests(unittest.TestCase):
 
 class MultiPolicyTests(unittest.TestCase):
     def test_one_detector_feeds_two_policies(self):
-        events = build_event_system(load_config("config/core.yaml"), database=":memory:",
-                                    async_notifications=False)
+        events = temp_event_system(self)
         det_ = CountingDetector(labels=[("scissors", 0.9), ("person", 0.9)])
         module = Module(det_, [LabelMatchPolicy("hazard_object", ["scissors"]),
                                LabelMatchPolicy("person_seen", ["person"])])

@@ -1,9 +1,11 @@
+import tempfile
 import unittest
+from pathlib import Path
 
 from src.cctv_core.factory import build_event_system
 from src.cctv_core.schemas import EventCandidate, Severity
-from src.utils.config import load_config
-from tests.fakes import det
+from src.utils.config import load_config, resolve_path
+from tests.fakes import det, temp_event_system
 
 
 class FactoryTests(unittest.TestCase):
@@ -23,6 +25,19 @@ class FactoryTests(unittest.TestCase):
         stored = system.store.get(ev.event_id)
         self.assertEqual(stored["notifications"][0]["channel"], "console")
         system.shutdown(20.0)
+
+
+    def test_snapshots_dir_can_be_overridden(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            system = build_event_system(load_config("config/core.yaml"), database=":memory:",
+                                        snapshots_dir=tmp, async_notifications=False)
+            self.assertEqual(system.manager.snapshots.directory, Path(tmp))
+            system.shutdown(0.0)
+
+    def test_temp_event_system_helper_writes_outside_data(self):
+        system = temp_event_system(self)
+        self.assertNotEqual(system.manager.snapshots.directory, resolve_path("data/snapshots"))
+        self.assertTrue(system.manager.snapshots.directory.is_dir())
 
 
 class ArchitectureRuleTests(unittest.TestCase):

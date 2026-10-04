@@ -1,4 +1,3 @@
-import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -6,12 +5,10 @@ from unittest import mock
 import numpy as np
 
 from src.cctv_core.events.policies import LabelMatchPolicy
-from src.cctv_core.events.snapshot import SnapshotWriter
-from src.cctv_core.factory import build_event_system
 from src.cctv_core.runner import Module, ModuleLoadError, Runner, build_modules
 from src.cctv_core.stream.camera_source import CameraSource
 from src.utils.config import load_config
-from tests.fakes import FakeDetector
+from tests.fakes import FakeDetector, temp_event_system
 
 
 class FakeSource:
@@ -57,14 +54,9 @@ class Clock:
 
 class RunnerTests(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.events = build_event_system(load_config("config/core.yaml"), database=":memory:",
-                                         async_notifications=False)
-        self.events.manager.snapshots = SnapshotWriter(self.tmp.name)
+        self.events = temp_event_system(self)
+        self.snapshot_dir = self.events.manager.snapshots.directory
         self.store = self.events.store
-
-    def tearDown(self):
-        self.tmp.cleanup()
 
     def run_with(self, modules, frames=30):
         src = FakeSource(frames)
@@ -79,7 +71,7 @@ class RunnerTests(unittest.TestCase):
         self.assertTrue(src.released)
         self.assertEqual(stats.frames, 30)
         self.assertEqual(stats.confirmed, 1)          # 30 sightings -> ONE event
-        self.assertEqual(len(list(Path(self.tmp.name).glob("*.jpg"))), 1)
+        self.assertEqual(len(list(self.snapshot_dir.glob("*.jpg"))), 1)
 
     def test_person_only_produces_no_event(self):
         det = FakeDetector(labels=[("person", 0.99)])

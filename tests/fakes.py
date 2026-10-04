@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tempfile
 import time
 
 from src.cctv_core.detector_base import BaseDetector
@@ -32,6 +33,18 @@ class FakeDetector(BaseDetector):
             timestamp=frame.timestamp,
             detections=[det(label, conf) for label, conf in self.labels],
         )
+
+
+def temp_event_system(testcase):
+    """The event system from config/core.yaml, with an in-memory database and a
+    temporary snapshot folder removed after the test - tests never write to data/."""
+    from src.cctv_core.factory import build_event_system
+    from src.utils.config import load_config
+
+    tmp = tempfile.TemporaryDirectory()
+    testcase.addCleanup(tmp.cleanup)
+    return build_event_system(load_config("config/core.yaml"), database=":memory:",
+                              snapshots_dir=tmp.name, async_notifications=False)
 
 
 class RecordingChannel(NotificationChannel):

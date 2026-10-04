@@ -52,7 +52,9 @@ def build_event_system(
     cfg: dict[str, Any],
     database: str | None = None,
     async_notifications: bool = True,
+    snapshots_dir: str | None = None,
 ) -> EventSystem:
+    """`database` / `snapshots_dir` override config storage (tests use ':memory:' and a temp dir)."""
     ev_cfg = cfg.get("events") or {}
     default = EventTypeConfig.from_dict(ev_cfg.get("default") or {})
     types = {
@@ -63,7 +65,7 @@ def build_event_system(
     storage = cfg.get("storage") or {}
     db_path = database or str(resolve_path(storage.get("database", "data/events.db")))
     store = EventStore(db_path)
-    snapshots = SnapshotWriter(resolve_path(storage.get("snapshots_dir", "data/snapshots")))
+    snapshots = SnapshotWriter(snapshots_dir or resolve_path(storage.get("snapshots_dir", "data/snapshots")))
 
     camera_names = camera_names_from(cfg)
     channels = build_channels(cfg, camera_names)

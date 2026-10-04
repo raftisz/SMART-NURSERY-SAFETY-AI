@@ -1,12 +1,11 @@
 import unittest
 
 from src.cctv_core.events.manager import EventTypeConfig
-from src.cctv_core.factory import build_event_system
 from src.cctv_core.runner import Module, Runner, build_modules
 from src.cctv_core.schemas import BBox, Detection, DetectorOutput, Keypoint
 from src.policies.fight import FightPolicy, SimpleTracker, box_gap
 from src.utils.config import load_config
-from tests.fakes import FakeDetector
+from tests.fakes import FakeDetector, temp_event_system
 from tests.test_runner import Clock, FakeSource
 
 H = 400  # person box height in pixels
@@ -125,8 +124,7 @@ class FightRuleTests(unittest.TestCase):
 
 class EndToEndTests(unittest.TestCase):
     def run_frames(self, pattern, frames):
-        events = build_event_system(load_config("config/core.yaml"), database=":memory:",
-                                    async_notifications=False)
+        events = temp_event_system(self)
         events.manager.type_configs["fight"] = EventTypeConfig(min_duration_s=1.0, max_gap_s=0.8)
         det = FakeDetector()
         det.process = lambda f: out(pattern(f.frame_index), f.frame_index / 10)

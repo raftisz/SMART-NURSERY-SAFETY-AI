@@ -5,13 +5,11 @@ from datetime import datetime
 from pathlib import Path
 
 from src.cctv_core.events.manager import EventTypeConfig
-from src.cctv_core.factory import build_event_system
 from src.cctv_core.runner import Module, Runner
 from src.cctv_core.schemas import BBox, Detection, DetectorOutput
 from src.cctv_core.zones import HeightModel, Zone, load_zones, parse_hours, save_zone
 from src.policies.out_of_area import OutOfAreaPolicy
-from src.utils.config import load_config
-from tests.fakes import FakeDetector
+from tests.fakes import FakeDetector, temp_event_system
 from tests.test_runner import Clock, FakeSource
 
 sys.path.insert(0, str(Path("tools").resolve()))
@@ -189,8 +187,7 @@ class DefineZoneToolTests(unittest.TestCase):
 
 class EndToEndTests(unittest.TestCase):
     def run_frames(self, box, frames, step=0.1):
-        events = build_event_system(load_config("config/core.yaml"), database=":memory:",
-                                    async_notifications=False)
+        events = temp_event_system(self)
         events.manager.type_configs["out_of_area"] = EventTypeConfig(min_duration_s=3.0)
         # keep the store open after the run so the test can read it
         events.shutdown = lambda now: (events.manager.close_all(now), events.router.close())
