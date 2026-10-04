@@ -93,6 +93,17 @@ class ShootingScriptTests(unittest.TestCase):
         self.assertEqual(types, set(eval_clips.MODULE_TYPES.values()))
 
 
+class GateDocTests(unittest.TestCase):
+    DOC = Path("docs/eval/decision_gates_outarea_fight.md")
+
+    def test_gates_recorded_with_date_and_numbers(self):
+        text = self.DOC.read_text(encoding="utf-8")
+        self.assertIn("2026-10-04", text)
+        self.assertIn("ก่อนเห็นผล", text)
+        for figure in ("≥ 8/10", "≤ 1/10", "≥ 9/10", "≥ 4/6", "≤ 2/8"):
+            self.assertIn(figure, text)
+
+
 class ClockTests(unittest.TestCase):
     def test_video_clock_follows_frames_not_wall_time(self):
         clock = eval_clips.VideoClock(fps=10, start=100.0)
