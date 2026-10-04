@@ -114,7 +114,11 @@ class Runner:
         max_frames: int = 0,
         clock: Callable[[], float] = time.time,
         window_name: str = "CCTV Core",
+        fallback: Callable[[], Any] | None = None,
+        using_fallback: bool = False,
     ):
+        """`fallback` opens a backup clip, used once if the source is lost.
+        While it plays, the status bar says BACKUP CLIP so it is never shown as live."""
         self.source = source
         self.modules = modules
         self.events = events
@@ -123,6 +127,8 @@ class Runner:
         self.max_frames = max_frames
         self.clock = clock
         self.window_name = window_name
+        self.fallback = fallback
+        self.using_fallback = using_fallback
         self.stats = RunStats()
         self._last_output: dict[str, DetectorOutput] = {}
         self._error_reported: set[str] = set()
@@ -157,6 +163,8 @@ class Runner:
         frame_index = 0
         while True:
             image = self.source.read()
+            if image is None and self.fallback is not None and not self.using_fallback:
+                image = self._switch_to_fallback()
             if image is None:
                 print("[CORE] source ended")
                 break
@@ -179,6 +187,17 @@ class Runner:
                 break
             if self.max_frames and frame_index >= self.max_frames:
                 break
+
+    def _switch_to_fallback(self) -> Any:
+        print("[CORE] source lost - switching to the BACKUP CLIP (marked on screen)")
+        self.using_fallback = True
+        self.source.release()
+        try:
+            self.source = self.fallback()
+        except Exception as exc:
+            print(f"[CORE] backup clip failed {type(exc).__name__}: {exc}")
+            return None
+        return self.source.read()
 
     def _run_module(self, m: Module, frame: Frame) -> None:
         name = m.detector.name
@@ -220,7 +239,8 @@ class Runner:
     def status_text(self) -> str:
         """Status bar: FPS, per-module time, module error counts, open events."""
         elapsed = max(1e-6, time.perf_counter() - self._start_perf)
-        parts = [f"{self.stats.frames / elapsed:.1f} FPS"]
+        parts = ["BACKUP CLIP"] if self.using_fallback else []
+        parts.append(f"{self.stats.frames / elapsed:.1f} FPS")
         for name, times in self.stats.infer_ms.items():
             recent = times[-30:]
             parts.append(f"{name} {statistics.median(recent):.0f}ms")

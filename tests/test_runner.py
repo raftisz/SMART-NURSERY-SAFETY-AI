@@ -1,3 +1,4 @@
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -93,6 +94,24 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(good.calls, 30)
         self.assertEqual(stats.confirmed, 1)
 
+    def test_switches_to_backup_clip_when_source_is_lost(self):
+        backup = FakeSource(5)
+        runner = Runner(FakeSource(5), [Module(CountingDetector(), LabelMatchPolicy("x", ["none"]))],
+                        self.events, display=False, clock=Clock(), fallback=lambda: backup)
+        stats = runner.run()
+        self.assertEqual(stats.frames, 10)          # 5 live + 5 backup, then the backup ended
+        self.assertTrue(runner.using_fallback)
+        self.assertTrue(backup.released)
+        self.assertIn("BACKUP CLIP", runner.status_text())   # never passed off as live
+
+    def test_backup_clip_is_used_only_once(self):
+        calls = []
+        runner = Runner(FakeSource(2), [Module(CountingDetector(), LabelMatchPolicy("x", ["none"]))],
+                        self.events, display=False, clock=Clock(),
+                        fallback=lambda: calls.append(1) or FakeSource(0))
+        self.assertEqual(runner.run().frames, 2)
+        self.assertEqual(len(calls), 1)
+
     def test_failing_module_leaves_no_stale_boxes_and_shows_errors(self):
         class BreaksLater(FakeDetector):
             name = "boom"
@@ -187,6 +206,40 @@ class CameraSourceTests(unittest.TestCase):
         frame = np.zeros((4, 6, 3), dtype=np.uint8)
         src = self.live_source("rtsp://cam/1", FakeCapture([]), FakeCapture([frame]))
         self.assertIsNotNone(src.read_result)  # recovered on the reopened capture
+
+
+class LoopVideoTests(unittest.TestCase):
+    def test_video_can_loop(self):
+        import cv2
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "backup.mp4"
+            w = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), 10, (64, 48))
+            for _ in range(3):
+                w.write(np.zeros((48, 64, 3), dtype=np.uint8))
+            w.release()
+            src = CameraSource(str(path), loop_video=True)
+            self.assertTrue(all(src.read() is not None for _ in range(8)))
+            src.release()
+            once = CameraSource(str(path))
+            self.assertEqual(sum(once.read() is not None for _ in range(8)), 3)
+            once.release()
+
+
+class RunCoreSourceTests(unittest.TestCase):
+    def test_backup_clip_used_when_camera_cannot_open(self):
+        import run_core
+
+        with tempfile.TemporaryDirectory() as tmp:
+            backup = Path(tmp) / "backup.png"
+            import cv2
+            cv2.imwrite(str(backup), np.zeros((48, 64, 3), dtype=np.uint8))
+            src, using_backup = run_core.open_source("no/such/camera.mp4", {}, str(backup))
+            self.assertTrue(using_backup)
+            self.assertIsNotNone(src.read())
+            src.release()
+            with self.assertRaises(FileNotFoundError):     # no backup: fail loudly as before
+                run_core.open_source("no/such/camera.mp4", {}, None)
 
 
 class FakeCapture:

@@ -6,6 +6,7 @@ Usage (from the repo root):
     python run_core.py --source clip.mp4        # video / image / rtsp:// instead of the camera
     python run_core.py --no-display --max-frames 300
     python run_core.py --console-only           # never send LINE, even if enabled in config
+    python run_core.py --fallback backup.mp4    # demo: play this clip if the camera fails
 
 Keys in the window: q or ESC to quit (works with a Thai keyboard too).
 Alerts are produced only by the Event Manager; see docs/architecture.md.
@@ -34,7 +35,27 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--no-display", action="store_true")
     p.add_argument("--max-frames", type=int, default=0)
     p.add_argument("--console-only", action="store_true", help="disable LINE for this run")
+    p.add_argument("--fallback", default=None,
+                   help="backup video played (looped, marked BACKUP CLIP) if the camera fails")
     return p.parse_args()
+
+
+def open_source(value, cam: dict, fallback: str | None):
+    """(source, using_fallback). Opens the camera; if that fails and a backup clip
+    is given, opens the clip instead. Without a backup the error is raised."""
+    try:
+        return CameraSource(value, cam.get("width"), cam.get("height"), cam.get("flip")), False
+    except (RuntimeError, FileNotFoundError) as exc:
+        if not fallback:
+            raise
+        print(f"[CORE] {exc}")
+        print("[CORE] using the BACKUP CLIP instead (marked on screen)")
+        return open_fallback(fallback, cam), True
+
+
+def open_fallback(path: str, cam: dict):
+    # same mirroring as the camera, so zones drawn on the camera view still line up
+    return CameraSource(path, flip=cam.get("flip"), loop_video=True)
 
 
 def main() -> int:
@@ -60,7 +81,10 @@ def main() -> int:
         return 1
 
     source_value = args.source if args.source is not None else cam.get("source", 0)
-    source = CameraSource(source_value, cam.get("width"), cam.get("height"), cam.get("flip"))
+    if args.fallback and not Path(args.fallback).is_file():
+        print(f"[CORE] backup clip not found: {args.fallback}")
+        return 1
+    source, using_fallback = open_source(source_value, cam, args.fallback)
     events = build_event_system(cfg)
 
     print("=" * 60)
@@ -69,8 +93,10 @@ def main() -> int:
     print(f" notify  : {', '.join(events.router.channels) or 'none'}")
     print("=" * 60)
 
+    fallback = (lambda: open_fallback(args.fallback, cam)) if args.fallback else None
     runner = Runner(source, modules, events, camera_id=str(cam["id"]),
-                    display=not args.no_display, max_frames=args.max_frames)
+                    display=not args.no_display, max_frames=args.max_frames,
+                    fallback=fallback, using_fallback=using_fallback)
     try:
         stats = runner.run()
     except ModuleLoadError as exc:

@@ -17,7 +17,7 @@ IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
 
 class CameraSource:
     def __init__(self, source: Any, width: int | None = None, height: int | None = None,
-                 flip: bool | None = None, loop_image: bool = True,
+                 flip: bool | None = None, loop_image: bool = True, loop_video: bool = False,
                  max_read_failures: int = 50, retry_delay_s: float = 0.1, reopen_every: int = 10):
         import cv2
 
@@ -28,6 +28,7 @@ class CameraSource:
         self.is_stream = "://" in raw
         self.is_image = not (self.is_webcam or self.is_stream) and Path(raw).suffix.lower() in IMAGE_SUFFIXES
         self.loop_image = loop_image
+        self.loop_video = loop_video  # restart a video file at its end (backup clip for demos)
         self.width, self.height = width, height
         self.max_read_failures = max(1, int(max_read_failures))
         self.retry_delay_s = float(retry_delay_s)
@@ -109,6 +110,9 @@ class CameraSource:
                 return None
         else:
             ok, frame = self._cap.read()
+            if not ok and self.loop_video:
+                self._cap.set(self._cv2.CAP_PROP_POS_FRAMES, 0)
+                ok, frame = self._cap.read()
             if not ok:
                 return None
         if self.flip:
