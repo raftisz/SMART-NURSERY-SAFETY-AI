@@ -98,14 +98,15 @@ class ShootingScriptS2Tests(unittest.TestCase):
 
     EXPECTED = {("outarea", "pos", "crouchstay"): 10, ("outarea", "neg", "adultstand"): 10,
                 ("outarea", "neg", "crouchpass"): 10, ("fight", "pos", "staged"): 6,
-                ("fight", "neg", "daily"): 8}
+                ("fight", "neg", "daily"): 8, ("hazard", "pos", "gate"): 10}
 
     def test_s2_gate_groups_have_the_required_clip_counts(self):
         import re
 
         text = Path("docs/eval/qa_shooting_script.md").read_text(encoding="utf-8")
-        rows = re.findall(r"`((outarea|fight)_(pos|neg)_s2_(\d+)_([a-z]+)_[a-z0-9_]*\.mp4)` ถึง "
-                          r"`((outarea|fight)_(pos|neg)_s2_(\d+)_([a-z]+)_[a-z0-9_]*\.mp4)` \| (\d+) \|", text)
+        rows = re.findall(r"`((outarea|fight|hazard)_(pos|neg)_s2_(\d+)_([a-z]+)_[A-Za-z0-9_]*\.mp4)` ถึง "
+                          r"`((outarea|fight|hazard)_(pos|neg)_s2_(\d+)_([a-z]+)_[A-Za-z0-9_]*\.mp4)` \| (\d+) \|",
+                          text)
         self.assertTrue(rows)
         counts = {}
         for first, mod, pol, a, grp, last, mod2, pol2, b, grp2, stated in rows:
@@ -181,7 +182,8 @@ class GateTests(unittest.TestCase):
     def test_each_gate_status(self):
         status = {g.rule.group: g.status for g in eval_clips.evaluate_gates(self.results())}
         self.assertEqual(status, {"crouchstay": "PASS", "adultstand": "FAIL", "crouchpass": "INCOMPLETE",
-                                  "staged": "PASS", "daily": "PASS"})
+                                  "staged": "PASS", "daily": "PASS",
+                                  "gate": "INCOMPLETE"})                  # no hazard clips in this set
 
     def test_gate_whose_event_type_was_not_run_is_not_judged(self):
         rows = eval_clips.evaluate_gates(self.results(), available={"out_of_area"})
@@ -214,9 +216,37 @@ class GateTests(unittest.TestCase):
 
     def test_gate_numbers_match_the_approved_document(self):
         doc = Path("docs/eval/decision_gates_outarea_fight.md").read_text(encoding="utf-8")
+        readme = Path("README.md").read_text(encoding="utf-8")
         for rule in eval_clips.GATES:
-            sign = "≥" if rule.op == ">=" else "≤"
-            self.assertIn(f"{sign} {rule.k}/{rule.n}", doc, rule.text)
+            if rule.source == "README.md":
+                self.assertIn(f"**≥ {rule.k} of {rule.n}**", readme, rule.text)
+                self.assertIn(f"**confidence ≥ {rule.min_conf:.2f}**", readme, rule.text)
+            else:
+                sign = "≥" if rule.op == ">=" else "≤"
+                self.assertIn(f"{sign} {rule.k}/{rule.n}", doc, rule.text)
+
+    def test_scissors_gate_counts_clips_with_scissors_at_040(self):
+        res = []
+        for i in range(1, 11):
+            conf = 0.55 if i <= 8 else 0.39                     # 8 clips reach 0.40
+            res.append(ClipResult(Clip(f"/c/hazard_pos_s2_{i:02d}_gate_A{i}.mp4", "test", {"hazard_object"}),
+                                  {}, 10.0, 100, max_conf={"scissors": conf, "knife": 0.9}))
+        g = next(g for g in eval_clips.evaluate_gates(res) if g.rule.group == "gate")
+        self.assertEqual((g.clips, g.counted, g.status), (10, 8, "PASS"))
+        res[0].max_conf["scissors"] = 0.2                       # knife does not count for scissors
+        g = next(g for g in eval_clips.evaluate_gates(res) if g.rule.group == "gate")
+        self.assertEqual((g.counted, g.status), (7, "FAIL"))
+
+    def test_scissors_gate_is_labelled_as_clips_not_live_camera(self):
+        import tempfile
+
+        res = [ClipResult(Clip(f"/c/hazard_pos_s2_{i:02d}_gate_A{i}.mp4", "test", {"hazard_object"}),
+                          {}, 10.0, 100, max_conf={"scissors": 0.5}) for i in range(1, 11)]
+        with tempfile.TemporaryDirectory() as tmp:
+            _, summary = eval_clips.write_report(res, eval_clips.score(res), Path(tmp), "t", [],
+                                                 gates=eval_clips.evaluate_gates(res))
+            text = summary.read_text(encoding="utf-8")
+        self.assertIn("from clips, not the live camera", text)
 
 
 class RunClipTests(unittest.TestCase):
@@ -241,6 +271,16 @@ class RunClipTests(unittest.TestCase):
         self.assertEqual(r_long.fired, {"hazard_object": 1})
         self.assertAlmostEqual(r_long.duration_s, 4.0)
         self.assertEqual(r_long.frames, 40)
+
+    def test_clip_records_highest_confidence_per_label(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "c.mp4"
+            write_video(path, 5)
+            ev = eval_clips.Evaluator(FAKE_CFG, camera_id="qa")
+            r = ev.run_clip(Clip(str(path), "test", set()))
+            ev.close()
+        self.assertAlmostEqual(r.max_conf["scissors"], 0.9)   # FakeDetector sees scissors 0.9
+        self.assertEqual(r.frames_over["scissors"], 5)        # frames with scissors >= 0.40
 
     def test_models_load_once_for_many_clips(self):
         with tempfile.TemporaryDirectory() as tmp:

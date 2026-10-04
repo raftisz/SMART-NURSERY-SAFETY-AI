@@ -22,8 +22,9 @@ Scoring per event type T, one row per clip:
     clip does not expect T but T fired -> FP clip (+ every such event counts toward FP/hour)
 Processing FPS here is NOT gate-valid (no display, file input).
 
-Decision gates (docs/eval/decision_gates_outarea_fight.md) are judged on the
-test split only, per clip subgroup = the first word after the clip number,
+Decision gates (docs/eval/decision_gates_outarea_fight.md, and the Phase 2
+scissors gate in README.md measured from clips) are judged on the test split
+only, per clip subgroup = the first word after the clip number,
 e.g. outarea_pos_s2_03_crouchstay_door.mp4 -> outarea / pos / crouchstay.
 """
 
@@ -147,18 +148,32 @@ class VideoClock:
         return t
 
 
-class _Preloaded(BaseDetector):
-    """Reuses an already loaded detector so each clip does not reload weights."""
+LABEL_GATE_CONF = 0.40  # frames_over counts frames with a label at or above this
 
-    def __init__(self, inner: BaseDetector):
+
+class _Preloaded(BaseDetector):
+    """Reuses an already loaded detector so each clip does not reload weights,
+    and records the highest confidence per label it reports (for label gates)."""
+
+    def __init__(self, inner: BaseDetector, seen: dict[str, list]):
         super().__init__(name=inner.name, run_every_n_frames=inner.run_every_n_frames)
         self.inner = inner
+        self.seen = seen  # label -> [max confidence, frames >= LABEL_GATE_CONF]
 
     def load(self) -> None:
         pass
 
     def process(self, frame):
-        return self.inner.process(frame)
+        out = self.inner.process(frame)
+        best: dict[str, float] = {}
+        for d in out.detections:
+            label = d.label.lower()
+            best[label] = max(best.get(label, 0.0), d.confidence)
+        for label, conf in best.items():
+            entry = self.seen.setdefault(label, [0.0, 0])
+            entry[0] = max(entry[0], conf)
+            entry[1] += conf >= LABEL_GATE_CONF
+        return out
 
 
 def eval_config(cfg: dict[str, Any]) -> dict[str, Any]:
@@ -183,6 +198,8 @@ class ClipResult:
     duration_s: float
     frames: int
     errors: dict[str, int] = field(default_factory=dict)
+    max_conf: dict[str, float] = field(default_factory=dict)   # label -> highest confidence in the clip
+    frames_over: dict[str, int] = field(default_factory=dict)  # label -> frames >= LABEL_GATE_CONF
 
 
 class Evaluator:
@@ -202,7 +219,7 @@ class Evaluator:
         self._detectors: list[BaseDetector] | None = None
         self.load_count = 0
 
-    def _modules(self):
+    def _modules(self, seen: dict[str, list]):
         modules = build_modules(self.cfg, self.only)  # fresh policies (tracker state) per clip
         if self._detectors is None:
             for m in modules:
@@ -213,7 +230,7 @@ class Evaluator:
             self._detectors = [m.detector for m in modules]
             self.load_count += 1
         for m, loaded in zip(modules, self._detectors):
-            m.detector = _Preloaded(loaded)
+            m.detector = _Preloaded(loaded, seen)
         return modules
 
     def model_info(self) -> list[str]:
@@ -221,7 +238,8 @@ class Evaluator:
         for d in self._detectors or []:
             info = getattr(d, "model_info", None)
             if info is not None:
-                lines.append(f"{d.name}: {info.weights} sha256 {(info.sha256 or 'n/a')[:16]}")
+                imgsz = f", imgsz {d.imgsz}" if hasattr(d, "imgsz") else ""
+                lines.append(f"{d.name}: {info.weights} sha256 {(info.sha256 or 'n/a')[:16]}{imgsz}")
             else:
                 lines.append(f"{d.name}: (no model info)")
         return lines
@@ -236,12 +254,14 @@ class Evaluator:
         store = events.store
         # keep the store open after the run so it can be read
         events.shutdown = lambda now: (events.manager.close_all(now), events.router.close())
-        runner = Runner(source, self._modules(), events, camera_id=str(self.camera["id"]),
+        seen: dict[str, list] = {}
+        runner = Runner(source, self._modules(seen), events, camera_id=str(self.camera["id"]),
                         display=False, clock=VideoClock(fps, self.start))
         stats = runner.run()
         fired = Counter(e["event_type"] for e in store.list_events(limit=1_000_000))
         store.close()
-        return ClipResult(clip, dict(fired), stats.frames / fps, stats.frames, dict(stats.errors))
+        return ClipResult(clip, dict(fired), stats.frames / fps, stats.frames, dict(stats.errors),
+                          {k: v[0] for k, v in seen.items()}, {k: v[1] for k, v in seen.items()})
 
     def close(self) -> None:
         if self._tmp is not None:
@@ -260,10 +280,13 @@ class GateRule:
     polarity: str      # "pos" / "neg"
     group: str         # clip-name subgroup
     event_type: str
-    count: str         # what is counted per clip: "alerted" or "silent"
+    count: str         # counted per clip: "alerted", "silent", or "label" (label seen at >= min_conf)
     op: str            # ">=" or "<="
     k: int
     n: int             # exact number of clips the gate is defined on
+    label: str | None = None
+    min_conf: float = 0.0
+    source: str = "docs/eval/decision_gates_outarea_fight.md"
 
 
 GATES: tuple[GateRule, ...] = (
@@ -275,6 +298,10 @@ GATES: tuple[GateRule, ...] = (
              "out_of_area", "silent", ">=", 9, 10),
     GateRule("fight: staged fight alerts", "fight", "pos", "staged", "fight", "alerted", ">=", 4, 6),
     GateRule("fight: everyday activity, false alarms", "fight", "neg", "daily", "fight", "alerted", "<=", 2, 8),
+    # Phase 2 scissors criterion (README Decision Gate), trials A1-A10 recorded as clips
+    GateRule("scissors A1-A10 (README Phase 2 gate) - from clips, not the live camera",
+             "hazard", "pos", "gate", "hazard_object", "label", ">=", 8, 10,
+             label="scissors", min_conf=0.40, source="README.md"),
 )
 
 
@@ -312,7 +339,10 @@ def evaluate_gates(results: list[ClipResult], available: set[str] | None = None)
         clips = [r for r in results if r.clip.split == "test"
                  and clip_tags(r.clip.path) == (rule.module, rule.polarity, rule.group)]
         alerted = sum(1 for r in clips if r.fired.get(rule.event_type, 0) > 0)
-        counted = alerted if rule.count == "alerted" else len(clips) - alerted
+        if rule.count == "label":
+            counted = sum(1 for r in clips if r.max_conf.get(rule.label, 0.0) >= rule.min_conf)
+        else:
+            counted = alerted if rule.count == "alerted" else len(clips) - alerted
         ran = available is None or rule.event_type in available
         out.append(GateResult(rule, len(clips), counted, ran))
     return out
@@ -389,8 +419,20 @@ def write_report(results: list[ClipResult], scores: dict[str, TypeScore], out_di
                   "| criterion | clips | counted | needed | result |", "|---|---|---|---|---|"]
         for g in gates:
             sign = "≥" if g.rule.op == ">=" else "≤"
-            lines.append(f"| {g.rule.text} | {g.clips}/{g.rule.n} | {g.counted}/{g.clips} {g.rule.count} | "
+            what = (f"with {g.rule.label} ≥ {g.rule.min_conf:.2f}" if g.rule.count == "label"
+                    else g.rule.count)
+            lines.append(f"| {g.rule.text} | {g.clips}/{g.rule.n} | {g.counted}/{g.clips} {what} | "
                          f"{sign} {g.rule.k}/{g.rule.n} | **{g.status}** |")
+        for g in gates:
+            if g.rule.count != "label" or not g.clips:
+                continue
+            per_clip = [f"{Path(r.clip.path).stem.split('_')[-1]} {r.max_conf.get(g.rule.label, 0.0):.2f} "
+                        f"({r.frames_over.get(g.rule.label, 0)}/{r.frames} frames)"
+                        for r in results if r.clip.split == "test"
+                        and clip_tags(r.clip.path) == (g.rule.module, g.rule.polarity, g.rule.group)]
+            lines += ["", f"{g.rule.text}: a clip counts when at least one frame has {g.rule.label} "
+                      f"≥ {g.rule.min_conf:.2f}. Highest {g.rule.label} confidence per clip "
+                      f"(frames ≥ {g.rule.min_conf:.2f} / frames): " + "; ".join(per_clip)]
         lines += ["", "INCOMPLETE = fewer clips than the gate needs (not a pass); "
                   "CHECK = more clips than the gate is defined on; "
                   "NOT RUN = the module for this event type was off in this run."]
