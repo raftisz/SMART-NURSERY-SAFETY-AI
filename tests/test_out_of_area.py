@@ -163,6 +163,12 @@ class DefineZoneToolTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             define_zone.calibration_point((5, 50), (9, 50), 100, 100)
 
+    def test_calibration_click_order_does_not_matter(self):
+        head_first = define_zone.calibration_point((100, 100), (100, 400), 640, 480)
+        feet_first = define_zone.calibration_point((100, 400), (100, 100), 640, 480)
+        self.assertEqual(feet_first, head_first)
+        self.assertAlmostEqual(head_first[0], 400 / 480, places=4)  # feet = the LOWER click
+
 
 class EndToEndTests(unittest.TestCase):
     def run_frames(self, box, frames, step=0.1):

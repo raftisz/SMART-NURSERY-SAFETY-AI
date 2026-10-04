@@ -47,9 +47,13 @@ def normalise(points, w: int, h: int):
 
 
 def calibration_point(head, feet, w: int, h: int) -> tuple[float, float]:
-    """(foot_y, height) normalised, from two clicks."""
-    foot_y = feet[1] / h
-    height = abs(feet[1] - head[1]) / h
+    """(foot_y, height) normalised, from two clicks.
+
+    The feet are the LOWER click (larger y), whichever was clicked first.
+    """
+    top, bottom = sorted((head[1], feet[1]))
+    foot_y = bottom / h
+    height = (bottom - top) / h
     if height <= 0:
         raise ValueError("head and feet clicks are at the same height")
     return round(foot_y, 4), round(height, 4)
