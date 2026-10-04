@@ -1,3 +1,4 @@
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -133,6 +134,28 @@ class EventManagerTests(unittest.TestCase):
             for t in (0.0, 0.5):
                 mgr2.submit(cand(t))
             self.assertIsNone(mgr2.submit(cand(1.0)).snapshot_path)
+
+    def test_snapshot_dir_that_cannot_be_created_does_not_raise(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            blocker = Path(tmp) / "not_a_dir"
+            blocker.write_text("x")                        # a FILE where the folder should be
+            writer = SnapshotWriter(blocker / "snapshots")
+            mgr = EventManager({"hazard_object": CFG}, snapshots=writer)
+            for t in (0.0, 0.5, 1.0):
+                ev = mgr.submit(cand(t), image=np.zeros((4, 4, 3), dtype=np.uint8))
+            self.assertIsNone(ev.snapshot_path)
+
+    def test_database_error_still_notifies(self):
+        class BrokenStore:
+            def save(self, event):
+                raise sqlite3.OperationalError("disk I/O error")
+
+        mgr = EventManager({"hazard_object": CFG}, store=BrokenStore(), dispatcher=self.disp)
+        for t in (0.0, 0.5, 1.0):
+            ev = mgr.submit(cand(t))
+        self.assertIs(ev.status, EventStatus.CONFIRMED)
+        self.assertEqual(self.disp.events, [ev])           # the alert still goes out
+        mgr.tick(20.0)                                     # closing must not raise either
 
     def test_close_all(self):
         for t in (0.0, 0.5, 1.0):

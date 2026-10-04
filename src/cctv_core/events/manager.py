@@ -143,10 +143,13 @@ class EventManager:
                     self._last_notified[key] = now
 
         # Outside the lock: file and network work must not block other submits.
+        # Evidence or database failures are reported but never stop the alert.
         if self.snapshots is not None and image is not None:
-            event.snapshot_path = self.snapshots.save(event, image)
-        if self.store is not None:
-            self.store.save(event)
+            try:
+                event.snapshot_path = self.snapshots.save(event, image)
+            except Exception as exc:
+                print(f"[EVENT] snapshot error {type(exc).__name__}: {exc}")
+        self._save(event)
         if event.status is EventStatus.CONFIRMED and self.dispatcher is not None:
             self.dispatcher.dispatch(event)
         return event
@@ -197,6 +200,13 @@ class EventManager:
             return None  # never confirmed: discarded, not stored
         event.status = EventStatus.CLOSED
         event.closed_at = now
-        if self.store is not None:
-            self.store.save(event)
+        self._save(event)
         return event
+
+    def _save(self, event: Event) -> None:
+        if self.store is None:
+            return
+        try:
+            self.store.save(event)
+        except Exception as exc:  # e.g. disk full, database locked
+            print(f"[EVENT] store error {type(exc).__name__}: {exc}")

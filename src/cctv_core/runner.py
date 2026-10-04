@@ -203,7 +203,14 @@ class Runner:
             evidence = frame.image.copy()
             draw_output(evidence, output)
         for c in candidates:
-            event = self.events.manager.submit(c, image=evidence)
+            try:
+                event = self.events.manager.submit(c, image=evidence)
+            except Exception as exc:  # the event system must never stop the video loop
+                self.stats.errors["events"] += 1
+                if "events" not in self._error_reported:
+                    print(f"[CORE] events error {type(exc).__name__}: {exc} (further errors counted only)")
+                    self._error_reported.add("events")
+                continue
             if event is not None:
                 self.stats.confirmed += 1
                 where = f" [{event.subject}]" if event.subject else ""

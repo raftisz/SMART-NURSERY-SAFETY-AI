@@ -116,6 +116,14 @@ class RunnerTests(unittest.TestCase):
         self.assertNotIn("boom", runner._last_output)  # old boxes are not drawn forever
         self.assertIn("boom ERR 5", runner.status_text())
 
+    def test_event_system_error_does_not_stop_the_loop(self):
+        self.events.manager.submit = mock.Mock(side_effect=RuntimeError("database is locked"))
+        det = CountingDetector(labels=[("scissors", 0.9)])
+        _, stats = self.run_with([Module(det, LabelMatchPolicy("hazard_object", ["scissors"]))],
+                                 frames=10)
+        self.assertEqual(stats.frames, 10)
+        self.assertEqual(stats.errors["events"], 10)
+
     def test_load_failure_cleans_up_and_names_the_module(self):
         class NoWeights(FakeDetector):
             name = "climbing_pose"
