@@ -97,9 +97,20 @@ class NotebookTests(unittest.TestCase):
             ast.parse("\n".join(line for line in src.splitlines() if not line.lstrip().startswith("!")))
 
     def test_pins_the_same_ultralytics_as_this_machine(self):
-        import ultralytics
+        try:
+            import ultralytics
+        except ImportError:
+            self.skipTest("ultralytics is not installed on this machine")
 
         self.assertIn(f"ultralytics=={ultralytics.__version__}", "\n".join(self.code()))
+
+    def test_pin_check_is_skipped_without_ultralytics(self):
+        from unittest import mock
+
+        check = NotebookTests("test_pins_the_same_ultralytics_as_this_machine")
+        with mock.patch.dict(sys.modules, {"ultralytics": None}):   # import now fails
+            with self.assertRaises(unittest.SkipTest):
+                check.test_pins_the_same_ultralytics_as_this_machine()
 
     def test_reads_training_images_only(self):
         import re
