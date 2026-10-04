@@ -93,6 +93,31 @@ class ShootingScriptTests(unittest.TestCase):
         self.assertEqual(types, set(eval_clips.MODULE_TYPES.values()))
 
 
+class ShootingScriptS2Tests(unittest.TestCase):
+    """Round s2 must have exactly the clips the out_of_area / fight gates need."""
+
+    EXPECTED = {("outarea", "pos", "crouchstay"): 10, ("outarea", "neg", "adultstand"): 10,
+                ("outarea", "neg", "crouchpass"): 10, ("fight", "pos", "staged"): 6,
+                ("fight", "neg", "daily"): 8}
+
+    def test_s2_gate_groups_have_the_required_clip_counts(self):
+        import re
+
+        text = Path("docs/eval/qa_shooting_script.md").read_text(encoding="utf-8")
+        rows = re.findall(r"`((outarea|fight)_(pos|neg)_s2_(\d+)_([a-z]+)_[a-z0-9_]*\.mp4)` ถึง "
+                          r"`((outarea|fight)_(pos|neg)_s2_(\d+)_([a-z]+)_[a-z0-9_]*\.mp4)` \| (\d+) \|", text)
+        self.assertTrue(rows)
+        counts = {}
+        for first, mod, pol, a, grp, last, mod2, pol2, b, grp2, stated in rows:
+            for name in (first, last):
+                eval_clips.parse_clip_name(name)            # both ends follow the naming rule
+            self.assertEqual((mod, pol, grp), (mod2, pol2, grp2), first)
+            n = int(b) - int(a) + 1
+            self.assertEqual(n, int(stated), first)         # the "จำนวน" column matches the range
+            counts[(mod, pol, grp)] = counts.get((mod, pol, grp), 0) + n
+        self.assertEqual(counts, self.EXPECTED)
+
+
 class GateDocTests(unittest.TestCase):
     DOC = Path("docs/eval/decision_gates_outarea_fight.md")
 

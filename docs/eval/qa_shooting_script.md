@@ -32,6 +32,16 @@
 - `pos` = ควรแจ้งเตือนเรื่อง module นั้น, `neg` = ไม่ควรแจ้งเตือนอะไรเลย (`normal` เป็น `neg` เสมอ)
 - `รอบ`: `s1`, `s2`, ... ใช้ตัวพิมพ์เล็ก ภาษาอังกฤษ ห้ามมีเว้นวรรค
 - คลิปจาก QuickTime เป็น `.mov` ได้ ไม่ต้องแปลงไฟล์
+- **outarea และ fight:** คำแรกของคำอธิบายคือ**กลุ่มย่อย** ต้องใช้คำเหล่านี้เท่านั้น เพราะใช้ตัดสิน Decision Gate (`docs/eval/decision_gates_outarea_fight.md`)
+
+| module | pos/neg | กลุ่มย่อย | ความหมาย |
+|---|---|---|---|
+| outarea | pos | `crouchstay` | ย่อตัวอยู่ในโซนนานกว่า 3 วินาที (ทำค้าง 5 วินาที) |
+| outarea | neg | `adultstand` | ผู้ใหญ่ยืนตรงหรือเดินตัวตรงในโซน |
+| outarea | neg | `crouchpass` | ย่อตัวเดินผ่านโซนเร็ว น้อยกว่า 2 วินาที |
+| outarea | neg | `crouchout` | ย่อตัวนอกโซน (รอบ s1 เท่านั้น) |
+| fight | pos | `staged` | แสดงการทะเลาะ (เบา ๆ) |
+| fight | neg | `daily` | กิจกรรมปกติ: กอด ไฮไฟว์ เต้น คุย ส่งของ ฯลฯ |
 
 ## 4. แบ่งรอบ: ชุดปรับค่า (s1) กับชุดวัดผล (s2)
 
@@ -44,7 +54,8 @@
 
 ## 5. รายการคลิป (ต่อ 1 รอบ)
 
-ตัวเลขในวงเล็บคือจำนวนคลิปขั้นต่ำต่อรอบ ชื่อไฟล์ด้านล่างเป็นตัวอย่างของรอบ s1 รอบ s2 ให้เปลี่ยน `s1` เป็น `s2`
+ชื่อไฟล์ด้านล่างเป็นรายการของรอบ s1 รอบ s2 ใช้รายการเดียวกัน (เปลี่ยน `s1` เป็น `s2`)
+**ยกเว้น fight และ outarea** ซึ่งรอบ s2 มีรายการของตัวเองในข้อ 5.1 (จำนวนตาม Decision Gate)
 
 ### ของมีคม (hazard): pos 6, neg 4
 
@@ -76,16 +87,16 @@
 
 ### ทะเลาะวิวาท (fight, แสดงเบา ๆ): pos 4, neg 6
 
-- `fight_pos_s1_01_push.mp4`: ผลักไปทางไหล่หรืออกซ้ำ ๆ 5 วินาที
-- `fight_pos_s1_02_slap_torso.mp4`: ตีเบา ๆ ที่แขนหรือลำตัวซ้ำ ๆ
-- `fight_pos_s1_03_both_swing.mp4`: ต่างคนต่างเหวี่ยงแขนใส่กัน
-- `fight_pos_s1_04_side_view.mp4`: ท่าข้อ 01 ถ่ายมุมด้านข้าง
-- `fight_neg_s1_01_hug.mp4`: กอดกัน
-- `fight_neg_s1_02_high_five.mp4`: ไฮไฟว์ 1 ครั้ง
-- `fight_neg_s1_03_dance_side.mp4`: เต้นข้างกัน
-- `fight_neg_s1_04_pass_object.mp4`: ส่งของให้กัน
-- `fight_neg_s1_05_clap_game.mp4`: ตบมือเล่นเกม
-- `fight_neg_s1_06_walk_past.mp4`: เดินสวนกันใกล้ ๆ
+- `fight_pos_s1_01_staged_push.mp4`: ผลักไปทางไหล่หรืออกซ้ำ ๆ 5 วินาที
+- `fight_pos_s1_02_staged_slap_torso.mp4`: ตีเบา ๆ ที่แขนหรือลำตัวซ้ำ ๆ
+- `fight_pos_s1_03_staged_both_swing.mp4`: ต่างคนต่างเหวี่ยงแขนใส่กัน
+- `fight_pos_s1_04_staged_side_view.mp4`: ท่าข้อ 01 ถ่ายมุมด้านข้าง
+- `fight_neg_s1_01_daily_hug.mp4`: กอดกัน
+- `fight_neg_s1_02_daily_high_five.mp4`: ไฮไฟว์ 1 ครั้ง
+- `fight_neg_s1_03_daily_dance_side.mp4`: เต้นข้างกัน
+- `fight_neg_s1_04_daily_pass_object.mp4`: ส่งของให้กัน
+- `fight_neg_s1_05_daily_clap_game.mp4`: ตบมือเล่นเกม
+- `fight_neg_s1_06_daily_walk_past.mp4`: เดินสวนกันใกล้ ๆ
 
 ### ปีนป่าย (climbing, เก้าอี้เตี้ย + มีคนประกบ): pos 4, neg 5
 
@@ -109,14 +120,14 @@
 - จากนั้นวาดโซนด้วย `python tools/define_zone.py --camera qa --source calib_outarea_s1.mp4 --name door`
 
 คลิปที่ต้องถ่าย:
-- `outarea_pos_s1_01_crouch_walk_in.mp4`: ผู้ใหญ่ย่อตัว (แทนเด็ก) เดินเข้าโซนแล้วอยู่ 5 วินาที
-- `outarea_pos_s1_02_crouch_stand_door.mp4`: นั่งยองที่ประตู 5 วินาที
-- `outarea_pos_s1_03_crouch_far.mp4`: ย่อตัวในโซนส่วนที่ไกลกล้อง
-- `outarea_pos_s1_04_crouch_near.mp4`: ย่อตัวในโซนส่วนที่ใกล้กล้อง (ต้องเห็นเท้า)
-- `outarea_neg_s1_01_adult_walk_through.mp4`: ผู้ใหญ่เดินตัวตรงผ่านประตู
-- `outarea_neg_s1_02_adult_stand_door.mp4`: ผู้ใหญ่ยืนตรงที่ประตู 5 วินาที
-- `outarea_neg_s1_03_crouch_outside.mp4`: ย่อตัวนอกโซน
-- `outarea_neg_s1_04_crouch_pass_fast.mp4`: ย่อตัวเดินผ่านโซนเร็ว ๆ ภายใน 2 วินาที
+- `outarea_pos_s1_01_crouchstay_walk_in.mp4`: ผู้ใหญ่ย่อตัว (แทนเด็ก) เดินเข้าโซนแล้วอยู่ 5 วินาที
+- `outarea_pos_s1_02_crouchstay_door.mp4`: นั่งยองที่ประตู 5 วินาที
+- `outarea_pos_s1_03_crouchstay_far.mp4`: ย่อตัวในโซนส่วนที่ไกลกล้อง
+- `outarea_pos_s1_04_crouchstay_near.mp4`: ย่อตัวในโซนส่วนที่ใกล้กล้อง (ต้องเห็นเท้า)
+- `outarea_neg_s1_01_adultstand_walk_through.mp4`: ผู้ใหญ่เดินตัวตรงผ่านประตู
+- `outarea_neg_s1_02_adultstand_door.mp4`: ผู้ใหญ่ยืนตรงที่ประตู 5 วินาที
+- `outarea_neg_s1_03_crouchout_outside.mp4`: ย่อตัวนอกโซน
+- `outarea_neg_s1_04_crouchpass_fast.mp4`: ย่อตัวเดินผ่านโซนเร็ว ๆ ภายใน 2 วินาที
 
 ### กิจกรรมปกติ (normal): 2 คลิป ยาว 5–10 นาที
 
@@ -124,6 +135,25 @@
 
 - `normal_neg_s1_01_room_activity.mp4`
 - `normal_neg_s1_02_two_people_talking.mp4`
+
+### 5.1 รอบ s2: outarea และ fight (ตาม Decision Gate)
+
+ใช้รายการนี้**แทน**รายการ fight และ outarea ของรอบ s1 จำนวนคลิปต้องครบพอดี ถ้าขาด ผล Gate จะเป็น "ยังไม่ครบ"
+ถ้าย้ายกล้องหลังรอบ s1 ให้ถ่าย `calib_outarea_s2.mp4` แล้ววาดโซนใหม่ก่อนวัดผล (`--source calib_outarea_s2.mp4`)
+
+| กลุ่ม | ชื่อไฟล์ | จำนวน | เกณฑ์ |
+|---|---|---|---|
+| ย่อตัวอยู่ในโซน ค้าง 5 วินาที (เปลี่ยนตำแหน่งในโซน ใกล้/ไกล/ซ้าย/ขวา) | `outarea_pos_s2_01_crouchstay_door.mp4` ถึง `outarea_pos_s2_10_crouchstay_door.mp4` | 10 | แจ้งเตือน ≥ 8/10 |
+| ผู้ใหญ่ยืนตรงในโซน 5 วินาที (เปลี่ยนตำแหน่งเหมือนกัน) | `outarea_neg_s2_01_adultstand_door.mp4` ถึง `outarea_neg_s2_10_adultstand_door.mp4` | 10 | แจ้งผิด ≤ 1/10 |
+| ย่อตัวเดินผ่านโซน ใช้เวลาในโซนน้อยกว่า 2 วินาที | `outarea_neg_s2_11_crouchpass_door.mp4` ถึง `outarea_neg_s2_20_crouchpass_door.mp4` | 10 | ไม่แจ้งเตือน ≥ 9/10 |
+| แสดงการทะเลาะ (ผลัก, ตีลำตัวเบา ๆ, เหวี่ยงแขน, มุมต่าง ๆ) | `fight_pos_s2_01_staged_push.mp4` ถึง `fight_pos_s2_06_staged_push.mp4` | 6 | แจ้งเตือน ≥ 4/6 |
+| กิจกรรมปกติ: กอด | `fight_neg_s2_01_daily_hug.mp4` ถึง `fight_neg_s2_02_daily_hug.mp4` | 2 | รวม 4 กลุ่ม แจ้งผิด ≤ 2/8 |
+| กิจกรรมปกติ: ไฮไฟว์ 1 ครั้ง | `fight_neg_s2_03_daily_highfive.mp4` ถึง `fight_neg_s2_04_daily_highfive.mp4` | 2 | (รวมกับกลุ่มกอด) |
+| กิจกรรมปกติ: เต้นข้างกัน | `fight_neg_s2_05_daily_dance.mp4` ถึง `fight_neg_s2_06_daily_dance.mp4` | 2 | (รวมกับกลุ่มกอด) |
+| กิจกรรมปกติ: ยืนคุยกันใกล้ ๆ | `fight_neg_s2_07_daily_talk.mp4` ถึง `fight_neg_s2_08_daily_talk.mp4` | 2 | (รวมกับกลุ่มกอด) |
+
+- เลขลำดับต้องเรียงต่อกันตามตาราง ส่วนคำท้ายชื่อเปลี่ยนให้ตรงกับท่าจริงได้ (เช่น `fight_pos_s2_03_staged_swing.mp4`) แต่ห้ามเปลี่ยนกลุ่มย่อย
+- ท่าทะเลาะใช้ได้ทั้งผลัก ตีลำตัว เหวี่ยงแขน ให้กระจายกันใน 6 คลิป และทำตามกฎความปลอดภัยข้อ 1
 
 ## 6. หลังถ่ายเสร็จ
 
@@ -137,5 +167,6 @@
 
 ## 7. เวลาที่ใช้โดยประมาณ
 
-ต่อ 1 รอบ: 47 คลิปสั้น ประมาณ 2 ชม. รวมจัดฉาก และคลิปปกติ 2 คลิปประมาณ 20 นาที
+- รอบ s1: 47 คลิปสั้น ประมาณ 2 ชม. รวมจัดฉาก และคลิปปกติ 2 คลิปประมาณ 20 นาที
+- รอบ s2: 73 คลิปสั้น (outarea 30 และ fight 14 แทนรายการ s1) ประมาณ 3 ชม. และคลิปปกติ 2 คลิปประมาณ 20 นาที
 ถ้าเวลาไม่พอ ให้ทำตามลำดับนี้ก่อน: กิจกรรมปกติ → smoking neg → fight → outarea → hazard → climbing
