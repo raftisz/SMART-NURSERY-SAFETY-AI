@@ -40,7 +40,14 @@ modules:
       params: {weights: "models/smoking/best.pt", conf: 0.5, run_every_n_frames: 2}
     policy:
       class: "src.cctv_core.events.policies:LabelMatchPolicy"
-      params: {event_type: smoking, labels: [smoking, cigarette], min_confidence: 0.5}
+      params:
+        event_type: smoking
+        labels: [smoking, cigarette]
+        min_confidence: 0.5
+        # สวิตช์: ไม่นับ cigarette ที่กรอบซ้อนกับ scissors/knife ของ hazard_object ในเฟรมเดียวกัน
+        # (กรรไกรถูกอ่านเป็น cigarette 0.60 วันที่ 25 ก.ย. และ 4 ต.ค.) ค่าเริ่มต้นปิด จนกว่าวัดผลบนคลิป s2 แล้วดีกว่า
+        # ต้องให้ hazard_object อยู่ก่อน smoking ใน modules
+        ignore_if_overlapping: {enabled: false, labels: [cigarette], with: [scissors, knife]}
 
   # Pose: ปีนป่าย + ทะเลาะวิวาท ใช้ผล Pose ชุดเดียวกัน (รันโมเดลครั้งเดียว)
   # ปิดไว้ก่อน (ลด FPS): เปิดเฉพาะรอบด้วย  python run_core.py --modules climbing_pose

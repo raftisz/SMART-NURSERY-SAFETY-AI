@@ -172,10 +172,11 @@ class Runner:
             h, w = image.shape[:2] if hasattr(image, "shape") else (0, 0)
             frame = Frame(self.camera_id, frame_index, now, image, w, h)
 
+            this_frame: dict[str, DetectorOutput] = {}
             for m in self.modules:
                 if not m.detector.should_run(frame_index):
                     continue
-                self._run_module(m, frame)
+                self._run_module(m, frame, this_frame)
 
             for closed in self.events.manager.tick(now):
                 print(f"[EVENT] closed {closed.event_type} @ {closed.camera_id} "
@@ -199,12 +200,14 @@ class Runner:
             return None
         return self.source.read()
 
-    def _run_module(self, m: Module, frame: Frame) -> None:
+    def _run_module(self, m: Module, frame: Frame, this_frame: dict[str, DetectorOutput] | None = None) -> None:
         name = m.detector.name
         try:
             output = m.detector.process(frame)
             if not output.frame_width:
                 output.frame_width, output.frame_height = frame.width, frame.height
+            # modules earlier in config order that ran on this frame (e.g. hazard boxes for smoking)
+            output.context = dict(this_frame or {})
             candidates = [c for p in m.policies for c in p.evaluate(output)]
         except Exception as exc:  # one broken module must not stop the others
             self.stats.errors[name] += 1
@@ -215,6 +218,8 @@ class Runner:
             return
         self.stats.infer_ms[name].append(output.inference_ms)
         self._last_output[name] = output
+        if this_frame is not None:
+            this_frame[name] = output
         if not candidates:
             return
         evidence = None

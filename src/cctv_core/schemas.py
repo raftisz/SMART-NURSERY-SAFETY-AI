@@ -105,6 +105,9 @@ class DetectorOutput:
     model: ModelInfo | None = None
     frame_width: int = 0   # size of the frame the detector saw (for normalised geometry)
     frame_height: int = 0
+    #: outputs of modules that already ran on the SAME frame, by detector name
+    #: (filled by the runner; lets a rule look at another model's boxes)
+    context: dict[str, "DetectorOutput"] = field(default_factory=dict, repr=False)
 
 
 # --------------------------------------------------------------------------

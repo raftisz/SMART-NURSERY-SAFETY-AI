@@ -129,6 +129,22 @@ Backspace หรือคลิกขวา = ลบจุดล่าสุด,
 
 เพิ่มช่อง `subject` (เช่นชื่อโซน) เหตุการณ์ถูกนับแยกตาม (กล้อง, ประเภท, subject) และเพิ่ม `min_duration_s` / `max_gap_s` ให้ประเภทเหตุการณ์ที่ต้องเห็นต่อเนื่องนาน ๆ ก่อนยืนยัน ค่าเริ่มต้นปิด พฤติกรรมเดิมไม่เปลี่ยน
 
+## smoking: ไม่นับ cigarette ที่ซ้อนกรอบของมีคม (สวิตช์ ค่าเริ่มต้นปิด)
+
+พบว่ากรรไกรถูกโมเดล smoking อ่านเป็น `cigarette` 0.60 (25 ก.ย. และ 4 ต.ค.) จึงแจ้ง smoking ผิดพร้อม hazard
+- `ignore_if_overlapping` ของ policy smoking ใน `config/core.yaml`: ถ้าเปิด `cigarette` ที่กรอบซ้อน (มีพื้นที่ร่วม) กับ `scissors`/`knife` ของ `hazard_object` ในเฟรมเดียวกันจะไม่นับ ส่วนป้าย `smoking` ไม่ถูกกรอง
+- ไม่มีค่าให้ปรับ (ซ้อน = ไม่นับ) จึงตั้งไว้ก่อนวัดคลิป s2 ได้
+- runner ส่งผลของ module ที่รันก่อนในเฟรมเดียวกันให้ทาง `DetectorOutput.context` จึงต้องให้ `hazard_object` อยู่ก่อน `smoking` ใน `modules:` ถ้า hazard ไม่ได้รัน ตัวกรองไม่ทำงาน
+
+วัดก่อน → หลังบนคลิป s2 ด้วยโค้ดชุดเดียวกัน (ปิด = ก่อน, เปิด = หลัง) ดูแถว `smoking` ในคลิป hazard (แจ้งผิด) และคลิป smoking pos (ยังเจอไหม):
+
+```bash
+python tools/eval_clips.py --labels docs/eval/qa_labels.csv --split test --tag smoking_filter_off
+sed 's/ignore_if_overlapping: {enabled: false/ignore_if_overlapping: {enabled: true/' config/core.yaml > /tmp/core_filter_on.yaml
+python tools/eval_clips.py --labels docs/eval/qa_labels.csv --split test --config /tmp/core_filter_on.yaml --tag smoking_filter_on
+```
+ถ้าตัวเลขหลังไม่ดีกว่า ให้คงสวิตช์ปิดไว้
+
 ## ก่อนเดโม (preflight + คลิปสำรอง)
 
 ```bash
