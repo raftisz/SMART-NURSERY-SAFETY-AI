@@ -10,8 +10,10 @@ How long they must stay is the Event Manager's job (min_duration_s of the
 
 Known limits (v1): an adult sitting or crouching in the zone looks like a
 child; a child walking IN from outside also triggers (no direction yet);
-boxes cut by the top/bottom image edge are skipped because their height is
-unreliable. No accuracy claim until it is measured.
+boxes cut by the BOTTOM image edge are skipped in every zone (their feet are
+out of the frame, so the box bottom is not a foot point); boxes cut by the top
+edge are skipped in child zones because their height is unreliable.
+No accuracy claim until it is measured.
 """
 
 from __future__ import annotations
@@ -24,6 +26,11 @@ from src.cctv_core.zones import Zone, load_zones
 from src.utils.config import resolve_path
 
 EDGE_MARGIN = 0.01  # boxes touching the top/bottom 1% are not measured
+
+
+def feet_cut_off(det: Detection, h: int) -> bool:
+    """The box reaches the bottom image edge: the feet are not in the frame."""
+    return det.bbox.y2 >= (1 - EDGE_MARGIN) * h
 
 
 class OutOfAreaPolicy(EventPolicy):
@@ -60,7 +67,7 @@ class OutOfAreaPolicy(EventPolicy):
         """height / expected adult height; None if it cannot be measured."""
         if zone.calibration is None:
             return None
-        if det.bbox.y1 <= EDGE_MARGIN * h or det.bbox.y2 >= (1 - EDGE_MARGIN) * h:
+        if det.bbox.y1 <= EDGE_MARGIN * h or feet_cut_off(det, h):
             return None
         foot_y = det.bbox.y2 / h
         return (det.bbox.height / h) / zone.calibration.expected(foot_y)
@@ -78,6 +85,8 @@ class OutOfAreaPolicy(EventPolicy):
         for d in output.detections:
             if d.label.lower() != self.person_label or d.confidence < self.min_confidence:
                 continue
+            if feet_cut_off(d, h):
+                continue  # no foot point to test, in any kind of zone
             fx = (d.bbox.x1 + d.bbox.x2) / 2 / w
             fy = d.bbox.y2 / h
             for zone in zones:

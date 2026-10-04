@@ -42,8 +42,20 @@ EN_HELP = {
 }
 
 
+EDGE_SNAP = 0.02  # clicks within 2% of an image edge land exactly on it
+
+
+def _snap(v: float) -> float:
+    if v <= EDGE_SNAP:
+        return 0.0
+    if v >= 1 - EDGE_SNAP:
+        return 1.0
+    return round(v, 4)
+
+
 def normalise(points, w: int, h: int):
-    return [(round(x / w, 4), round(y / h, 4)) for x, y in points]
+    """Pixel clicks -> 0..1, snapping clicks near an edge onto the edge (hard to hit exactly)."""
+    return [(_snap(x / w), _snap(y / h)) for x, y in points]
 
 
 def calibration_point(head, feet, w: int, h: int) -> tuple[float, float]:

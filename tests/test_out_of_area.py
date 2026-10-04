@@ -132,6 +132,13 @@ class PolicyTests(unittest.TestCase):
     def test_box_cut_by_image_edge_is_not_measured(self):
         self.assertEqual(policy(zone()).evaluate(output(person(cx=750, y1=650, y2=1000))), [])
 
+    def test_any_person_zone_ignores_box_cut_by_bottom_edge(self):
+        # feet out of the frame: the box ends at (or within 1% of) the image edge, which
+        # is not where the feet are. Real boxes end just inside the frame, e.g. y 0.995.
+        anyone = zone(polygon=[[0, 0.5], [1, 0.5], [1, 1], [0, 1]], calibration=None, child_filter=False)
+        self.assertEqual(policy(anyone).evaluate(output(person(cx=500, y1=300, y2=995))), [])
+        self.assertEqual(len(policy(anyone).evaluate(output(person(cx=500, y1=300, y2=950)))), 1)
+
     def test_low_confidence_and_other_labels(self):
         p = policy(zone())
         self.assertEqual(p.evaluate(output(person(conf=0.3, **CHILD))), [])
@@ -183,6 +190,10 @@ class DefineZoneToolTests(unittest.TestCase):
             define_zone.build_zone("gate", [(0, 0), (10, 0), (10, 10)],
                                    [(700, 300), (700, 900)], [(600, 310), (600, 890)],
                                    W, H, [], False)
+
+    def test_clicks_near_the_image_edge_snap_to_it(self):
+        pts = define_zone.normalise([(5, 995), (500, 970), (990, 15), (1000, 1000)], 1000, 1000)
+        self.assertEqual(pts, [(0.0, 1.0), (0.5, 0.97), (1.0, 0.0), (1.0, 1.0)])
 
     def test_calibration_click_order_does_not_matter(self):
         head_first = define_zone.calibration_point((100, 100), (100, 400), 640, 480)
