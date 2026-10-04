@@ -22,10 +22,18 @@ class TemplateTests(unittest.TestCase):
     def test_message_content(self):
         msg = format_message(event(), {"cam0": "Notebook Camera"})
         self.assertIn("🚨 AI CCTV ALERT 🚨", msg)
-        self.assertIn("ตรวจพบวัตถุอันตราย", msg)
-        self.assertIn("🎯 ประเภท: scissors", msg)
+        self.assertIn("ตรวจพบของมีคม", msg)
+        # the model often calls a knife "scissors": never state the kind as fact
+        self.assertIn("🎯 ประเภท: ของมีคม (โมเดลอ่านว่า scissors)", msg)
+        self.assertNotIn("🎯 ประเภท: scissors", msg)
         self.assertIn("0.87", msg)
         self.assertIn("📹 กล้อง: Notebook Camera", msg)
+
+    def test_fight_and_climbing_ask_a_teacher_to_check(self):
+        for etype in ("fight", "climbing"):
+            self.assertIn("โปรดตรวจสอบ", format_message(event(etype=etype)), etype)
+        for etype in ("hazard_object", "smoking", "out_of_area"):
+            self.assertNotIn("โปรดตรวจสอบ", format_message(event(etype=etype)), etype)
 
     def test_evidence_line_only_when_saved(self):
         self.assertNotIn("บันทึกภาพ", format_message(event()))
