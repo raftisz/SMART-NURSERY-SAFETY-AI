@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 
@@ -132,6 +133,48 @@ class CameraSourceTests(unittest.TestCase):
     def test_missing_file(self):
         with self.assertRaises(FileNotFoundError):
             CameraSource("no/such/file.mp4")
+
+    def live_source(self, raw, *captures, **kw):
+        """A webcam/stream source whose successive (re)opened captures are `captures`."""
+        caps = iter(captures)
+        with mock.patch.object(CameraSource, "_open_capture", side_effect=lambda: next(caps)):
+            src = CameraSource(raw, retry_delay_s=0.0, **kw)
+            src.read_result = src.read()
+        return src
+
+    def test_live_source_survives_a_failed_read(self):
+        frame = np.zeros((4, 6, 3), dtype=np.uint8)
+        src = self.live_source("0", FakeCapture([None, None, frame]))
+        self.assertIsNotNone(src.read_result)  # two hiccups do not end the run
+
+    def test_live_source_gives_up_after_many_failures(self):
+        src = self.live_source("0", *[FakeCapture([]) for _ in range(5)], max_read_failures=5)
+        self.assertIsNone(src.read_result)
+
+    def test_dead_capture_is_reopened(self):
+        frame = np.zeros((4, 6, 3), dtype=np.uint8)
+        src = self.live_source("rtsp://cam/1", FakeCapture([]), FakeCapture([frame]))
+        self.assertIsNotNone(src.read_result)  # recovered on the reopened capture
+
+
+class FakeCapture:
+    """cv2.VideoCapture stand-in: None in `reads` = a failed read."""
+
+    def __init__(self, reads):
+        self.reads = list(reads)
+
+    def isOpened(self):
+        return True
+
+    def set(self, *_):
+        return True
+
+    def read(self):
+        frame = self.reads.pop(0) if self.reads else None
+        return frame is not None, frame
+
+    def release(self):
+        pass
 
 
 if __name__ == "__main__":
