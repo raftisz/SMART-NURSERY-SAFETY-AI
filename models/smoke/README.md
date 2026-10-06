@@ -1,6 +1,10 @@
 # smoke — `models/smoke/smoke_custom_yolo11n_v2.pt`
 
-โมเดลตรวจควัน (class เดียว) ที่ฝึกเอง **ยังไม่ต่อเข้า pipeline หลัก** (`config/core.yaml` ไม่ได้อ้างถึง)
+โมเดลตรวจควัน (class เดียว) ที่ฝึกเอง ต่อเข้า pipeline หลักเป็นโมดูล `smoke` (`src/detectors/smoke.py`)
+แต่**ปิดเป็นค่าเริ่มต้น** (`enabled: false` ใน `config/core.yaml`) เปิดเฉพาะรอบด้วย
+`python run_core.py --modules smoke --console-only`
+แจ้งเตือนผ่าน Event Manager เท่านั้น ต้องเห็นต่อเนื่อง 2 วินาที, cooldown 60 วินาที
+ข้อความใช้คำว่า "possible smoke … โปรดตรวจสอบ" ไม่ใช่การยืนยันว่ามีควัน
 
 | รายการ | ค่า |
 |---|---|
