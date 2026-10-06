@@ -13,6 +13,8 @@ TITLES: dict[str, str] = {
     "climbing": "พบท่าทางเสี่ยงปีนป่าย โปรดตรวจสอบ",
     "out_of_area": "ตรวจพบเด็กออกนอกพื้นที่",
     "fight": "พบท่าทางคล้ายการทะเลาะวิวาท โปรดตรวจสอบ",
+    # self-trained model, only a small live test: never state that it is smoke
+    "smoke": "พบลักษณะคล้ายควัน (possible smoke) โปรดตรวจสอบ",
 }
 
 # Event types whose model label is not reliable enough to state as the kind of

@@ -63,6 +63,23 @@ modules:
         # ค่าเริ่มต้นสำหรับทดลอง ต้องปรับจากคลิป QA (ตัวเลข spd บนกรอบคนช่วยปรับ speed_threshold)
         params: {event_type: fight, close_gap: 0.15, speed_threshold: 1.5, speed_window_s: 0.5}
 
+  # ควัน v2: โมเดลฝึกเอง (models/smoke/README.md) ยังไม่ได้วัดผลกับกล้องจริงนอกจากเทสสด 5 ครั้งห้องเดียว
+  # ปิดไว้ก่อน: เปิดเฉพาะรอบด้วย  python run_core.py --modules smoke --console-only
+  # conf 0.25 / imgsz 640 เท่ากับ tools/smoke_live_test.py; sha256 ต้องตรงก่อนเปิดไฟล์ .pt
+  # อยู่ท้ายสุดเพื่อไม่เปลี่ยน context ที่ smoking ใช้
+  - enabled: false
+    detector:
+      class: "src.detectors.smoke:SmokeDetector"
+      params:
+        weights: "models/smoke/smoke_custom_yolo11n_v2.pt"
+        sha256: "2a97455c6f96252dfcedf92c149154db1b32d8eee0ef0028bb2d9c80cad95876"
+        conf: 0.25
+        imgsz: 640
+        run_every_n_frames: 2
+    policy:
+      class: "src.cctv_core.events.policies:LabelMatchPolicy"
+      params: {event_type: smoke, labels: [smoke], min_confidence: 0.25}
+
 events:
   # ค่าตั้งต้นของทุกประเภท
   default:
@@ -80,6 +97,9 @@ events:
     out_of_area: {severity: HIGH, min_duration_s: 3.0}
     # ต้องเห็นท่าทะเลาะต่อเนื่อง 1 วินาที (ตัดไฮไฟว์หรือการแตะตัวครั้งเดียว)
     fight: {severity: HIGH, min_duration_s: 1.0, max_gap_s: 0.8}
+    # ควันต้องเห็นต่อเนื่อง 2 วินาที (หายเกิน 1 วินาทีเริ่มนับใหม่) ตัดเฟรมผิดที่โผล่สั้นๆ
+    # ค่าตั้งต้น ยังไม่ได้วัด; cooldown 60 วินาที เพราะควันค้างนาน ไม่ให้แจ้งซ้ำทุก 30 วินาที
+    smoke: {severity: MEDIUM, min_duration_s: 2.0, max_gap_s: 1.0, cooldown_s: 60.0}
 
 storage:
   database: data/events.db       # ถูก ignore ใน git
