@@ -1,0 +1,109 @@
+{
+  "file": "hazard_v1_full.pt",
+  "sha256": "77897166ffa4760b02918bfc4c8e7c8c9b3c72184898fb47240413c2b55fe55a",
+  "date": "2026-10-06T18:15",
+  "base": "yolo11n.pt",
+  "classes": "COCO-80 (unchanged order)",
+  "data": "/content/hazard_full/data.yaml",
+  "train_args": {
+    "data": "/content/hazard_full/data.yaml",
+    "epochs": 40,
+    "imgsz": 960,
+    "batch": 16,
+    "device": "0",
+    "workers": 4,
+    "seed": 0,
+    "deterministic": true,
+    "optimizer": "SGD",
+    "lr0": 0.002,
+    "lrf": 0.1,
+    "momentum": 0.937,
+    "weight_decay": 0.0005,
+    "warmup_epochs": 1.0,
+    "cos_lr": true,
+    "freeze": 0,
+    "mosaic": 1.0,
+    "close_mosaic": 8,
+    "mixup": 0.0,
+    "hsv_h": 0.015,
+    "hsv_s": 0.7,
+    "hsv_v": 0.4,
+    "fliplr": 0.5,
+    "scale": 0.9,
+    "translate": 0.1,
+    "patience": 13,
+    "fraction": 1.0,
+    "name": "hazard_v1_full",
+    "exist_ok": true,
+    "plots": true,
+    "verbose": true
+  },
+  "ultralytics": "8.4.136",
+  "torch": "2.11.0+cu130",
+  "device": "0",
+  "dataset_stats": {
+    "train/coco": {
+      "images": 2082,
+      "knife_boxes": 116,
+      "scissors_boxes": 20,
+      "person_boxes": 4284,
+      "added_by_teacher": 0
+    },
+    "val/coco": {
+      "images": 321,
+      "knife_boxes": 34,
+      "scissors_boxes": 2,
+      "person_boxes": 698,
+      "added_by_teacher": 0
+    },
+    "test/coco": {
+      "images": 2597,
+      "knife_boxes": 175,
+      "scissors_boxes": 14,
+      "person_boxes": 5795,
+      "added_by_teacher": 0
+    },
+    "test/hod": {
+      "images": 637,
+      "knife_boxes": 759,
+      "scissors_boxes": 0,
+      "person_boxes": 0,
+      "added_by_teacher": 0
+    },
+    "train/hod": {
+      "images": 2230,
+      "knife_boxes": 2657,
+      "scissors_boxes": 400,
+      "person_boxes": 1390,
+      "added_by_teacher": 4836
+    },
+    "val/hod": {
+      "images": 319,
+      "knife_boxes": 396,
+      "scissors_boxes": 40,
+      "person_boxes": 210,
+      "added_by_teacher": 804
+    },
+    "val/sohas": {
+      "images": 317,
+      "knife_boxes": 164,
+      "scissors_boxes": 20,
+      "person_boxes": 300,
+      "added_by_teacher": 715
+    },
+    "train/sohas": {
+      "images": 3260,
+      "knife_boxes": 1779,
+      "scissors_boxes": 215,
+      "person_boxes": 3658,
+      "added_by_teacher": 7327
+    },
+    "test/sohas": {
+      "images": 772,
+      "knife_boxes": 452,
+      "scissors_boxes": 0,
+      "person_boxes": 0,
+      "added_by_teacher": 0
+    }
+  }
+}

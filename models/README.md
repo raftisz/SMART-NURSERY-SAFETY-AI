@@ -50,3 +50,15 @@
 | ผลบน Mendeley Testing | detector อย่างเดียว: เจอ 105/112, แจ้งผิด 41/112 → + ตัวยืนยัน: เจอ 99/112, แจ้งผิด 9/112 (`docs/eval/smoking_cls_mendeley_test.md`) |
 | สถานะ | **DO NOT ADOPT** (recall ลด 5.4 จุด เกินงบ 5 จุดที่ตั้งไว้ก่อน) ไม่ได้ใช้ในระบบ ยังไม่ได้วัดบนคลิป QA |
 | License | AGPL-3.0 (Ultralytics) |
+
+## hazard_object v1 (fine-tune) — `models/hazard/hazard_v1_full.pt` (สร้างจาก Colab)
+
+| รายการ | ค่า |
+|---|---|
+| ที่มา | `notebooks/hazard_v1_colab.ipynb` (GPU T4) = `tools/build_hazard_dataset.py` → `tools/train_hazard_model.py` |
+| ฐาน | `yolo11n.pt` (COCO) **คง 80 คลาสเดิม** ชื่อคลาสเหมือนเดิม จึงใช้แทนกันได้ทันที |
+| Dataset | COCO val2017 (replay) + HOD knife + Sohas (มีดในมือ + hard negatives) รายละเอียด/License: `docs/eval/hazard_v1_dataset.md` |
+| Training args | epochs 40, imgsz 960, batch 16, freeze 0, SGD lr0 0.002, scale 0.9, seed 0 |
+| SHA-256 / ผลวัด | อยู่ใน `hazard_v1_full.train_info.json` และ `docs/eval/hazard_v1_full_eval.md` ที่ได้จาก Colab |
+| สถานะ | **ไม่ใช่ค่าเริ่มต้น**: มีด AP +49 จุด แต่กรรไกร −33 จุด (`docs/eval/hazard_v1_full_eval.md`) ใช้เฉพาะเมื่อเน้นมีด |
+| License | AGPL-3.0 (Ultralytics); ข้อมูล HOD ใช้เพื่อการวิจัยเท่านั้น |

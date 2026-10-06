@@ -24,12 +24,31 @@ modules:
   - detector:
       class: "src.detectors.hazard_object:HazardObjectDetector"
       # imgsz 960: ของชิ้นเล็กได้ conf สูงขึ้นในการทดสอบด้วยมือ (docs/eval/hazard_imgsz_manual.md)
-      params: {weights: "yolo11n.pt", conf: 0.25, imgsz: 960, nms_iou: 0.5, run_every_n_frames: 1}
+      # weights: โมเดลที่ fine-tune แล้วจาก notebooks/hazard_v1_colab.ipynb ให้วางไฟล์ไว้ที่
+      #   models/hazard/hazard_v1_full.pt แล้วเปลี่ยน weights เป็น "models/hazard/hazard_v1_full.pt"
+      #   (ชื่อคลาสเหมือน COCO เดิม ส่วนอื่นไม่ต้องแก้) ผลเทียบอยู่ใน docs/eval/hazard_v1_full_eval.md
+      # zoom: ครอปรอบคนที่อยู่ไกล (ตัวเล็กในภาพ) แล้วให้โมเดลดูซ้ำแบบขยาย ช่วยของชิ้นเล็กในมือที่ระยะไกล
+      #   เสียเวลาเพิ่มเฉพาะตอนมีคนอยู่ไกล every_n: 2 = ทำทุก 2 เฟรม (ลดผลกระทบ FPS)
+      #   ปิด: enabled: false  ดูรายละเอียดที่ src/detectors/hazard_zoom.py
+      params:
+        weights: "yolo11n.pt"
+        conf: 0.25
+        imgsz: 960
+        nms_iou: 0.5
+        run_every_n_frames: 1
+        zoom: {enabled: true, max_crops: 3, max_person_height: 0.6, crop_imgsz: 640, every_n: 2}
     # โมเดลเดียวส่งผลให้ 2 กฎ: ของมีคม + เด็กออกนอกพื้นที่ (ใช้กรอบ person ชุดเดียวกัน ไม่รันโมเดลเพิ่ม)
     policies:
       - class: "src.cctv_core.events.policies:LabelMatchPolicy"
         # person อย่างเดียวไม่นับเป็นเหตุการณ์ (เหมือน detect.py เดิม)
-        params: {event_type: hazard_object, labels: [scissors, knife], min_confidence: 0.25}
+        # persistence: นับเฉพาะกล่องที่เห็นซ้ำที่ตำแหน่งเดิม >= 2 เฟรมใน 1 วินาที
+        #   ตัดกล่องที่โผล่เฟรมเดียวบนพื้นหลัง (ปากกา เงา ลวดลาย) ซึ่งเดิมนับรวมกับ confirm_hits ได้
+        # per_label_confidence: threshold แยกคลาส ใส่ค่าจาก docs/eval/hazard_v1_full_eval.json (เลือกบน val)
+        params:
+          event_type: hazard_object
+          labels: [scissors, knife]
+          min_confidence: 0.25
+          persistence: {enabled: true, min_frames: 2, window_s: 1.0, max_shift: 1.5}
       - class: "src.policies.out_of_area:OutOfAreaPolicy"
         # โซนอยู่ใน config/zones.yaml สร้างด้วย: python tools/define_zone.py --name <ชื่อโซน>
         # child_ratio: สูงไม่ถึงกี่เท่าของผู้ใหญ่ที่ยืนจุดเดียวกัน = เด็ก (เด็ก 2-6 ขวบ ประมาณ 0.5-0.75)
