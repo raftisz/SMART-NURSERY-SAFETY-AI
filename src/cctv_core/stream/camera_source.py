@@ -3,6 +3,11 @@
 Webcam backend choice mirrors detect.py: AVFoundation on macOS, CAP_ANY elsewhere.
 A live source (webcam or stream) retries failed reads and reopens the capture,
 so one dropped frame does not end the run; a video file still ends at its end.
+
+Phone clips often carry a rotation tag (e.g. 180 when the phone was held upside
+down). Some OpenCV builds ignore it, which turns people upside down and breaks
+pose, zones and foot points. Video files are therefore rotated here by their tag,
+with OpenCV's own auto-rotation switched off so a frame is never rotated twice.
 """
 
 from __future__ import annotations
@@ -13,6 +18,8 @@ from pathlib import Path
 from typing import Any
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
+# rotation tag (degrees) -> cv2.rotate code, the same mapping OpenCV's auto-rotation uses
+ROTATIONS = {90: "ROTATE_90_CLOCKWISE", 180: "ROTATE_180", 270: "ROTATE_90_COUNTERCLOCKWISE"}
 
 
 class CameraSource:
@@ -38,6 +45,7 @@ class CameraSource:
         self._still = None
         self._cap = None
         self._served_image = False
+        self.rotation = 0  # degrees applied to every video-file frame (from the file's rotation tag)
 
         if self.is_webcam:
             self._cap = self._open_capture()
@@ -62,6 +70,22 @@ class CameraSource:
                 self._cap = cv2.VideoCapture(str(path))
                 if not self._cap.isOpened():
                     raise RuntimeError(f"Could not open video: {raw}")
+                self.rotation = self._take_over_rotation()
+
+    def _take_over_rotation(self) -> int:
+        """Switch off OpenCV's auto-rotation and return the tag to apply ourselves (0 = none).
+
+        If the backend refuses to switch it off, OpenCV keeps rotating the frames
+        itself, so nothing more is applied here."""
+        cv2 = self._cv2
+        tag = int(round(self._cap.get(cv2.CAP_PROP_ORIENTATION_META) or 0)) % 360
+        if tag not in ROTATIONS:
+            return 0
+        self._cap.set(cv2.CAP_PROP_ORIENTATION_AUTO, 0)
+        if self._cap.get(cv2.CAP_PROP_ORIENTATION_AUTO):
+            return 0
+        print(f"[SOURCE] {self.source}: rotation tag {tag} - frames rotated to upright")
+        return tag
 
     def _open_capture(self):
         """Open the webcam or stream capture (also used to reconnect)."""
@@ -115,6 +139,8 @@ class CameraSource:
                 ok, frame = self._cap.read()
             if not ok:
                 return None
+            if self.rotation:
+                frame = self._cv2.rotate(frame, getattr(self._cv2, ROTATIONS[self.rotation]))
         if self.flip:
             # Flip BEFORE inference so boxes match what is displayed.
             frame = self._cv2.flip(frame, 1)
