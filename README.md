@@ -280,6 +280,12 @@ Let it run ~30 seconds before reading it, or start-up cost skews the average.
 - Small objects at ≥ 2 m occupy few pixels and are the likeliest misses.
 - Every measurement so far is from **file input on the developer machine**. No
   webcam numbers exist yet.
+- **Fight detection (CCTV Core) is a prototype**, off by default. Its alert is a
+  "possible fight — please check" message that a teacher must always confirm.
+  Informal tests on adult sparring clips found that motion strength alone cannot
+  tell fighting from hugging, walking together or celebrating, and it has not been
+  tested with children or measured against its own gate yet. Details, what was
+  tried, licensing notes and next steps: `docs/architecture.md` (Fight v1).
 
 ## Decision Gate
 
