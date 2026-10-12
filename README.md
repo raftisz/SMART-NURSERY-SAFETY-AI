@@ -291,8 +291,10 @@ Let it run ~30 seconds before reading it, or start-up cost skews the average.
   still photos of adults climbing gave 0/7: the current pose rule looks at body
   posture (ankle above hip) but not at height above the floor, so someone standing
   on a table looks the same as someone standing on the floor. Not tested with
-  children; no official gate or s1/s2 clips exist for climbing yet. Planned next
-  step (not done): per-camera furniture/climb zones. Details:
+  children; no official gate or s1/s2 clips exist for climbing yet. An
+  experimental zone mode (off by default) alerts on visible ankles inside
+  per-camera furniture "climb" zones; it has only passed a mechanism check on still
+  images (3 of 4 behaved as declared), not a measurement. Details:
   `docs/architecture.md` (Climbing v1).
 
 ## Decision Gate
