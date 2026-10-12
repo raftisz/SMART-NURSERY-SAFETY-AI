@@ -124,13 +124,34 @@ class ClimbingPoseDetector(BaseDetector):
 
 
 class ClimbingPosePolicy(EventPolicy):
+    """mode "pose" (default) = the legacy posture rule above.
+    mode "zone" = visible ankles on a furniture climb zone (src/policies/climb_zone.py, experimental);
+    set min_duration_s of the 'climbing' event type when using it."""
+
+    MODES = ("pose", "zone")
+
     def __init__(self, event_type: str = "climbing", require_both: bool = True,
-                 keypoint_conf: float = 0.3):
+                 keypoint_conf: float = 0.3, mode: str = "pose",
+                 zones_file: str | None = "config/zones.yaml", zones: dict[str, list[Any]] | None = None):
+        if mode not in self.MODES:
+            raise ValueError(f"climbing mode must be one of {self.MODES}")
         self.event_type = event_type
         self.require_both = require_both
         self.keypoint_conf = keypoint_conf
+        self.mode = mode
+        self._zone_rule = None
+        if mode == "zone":
+            from src.policies.climb_zone import ClimbZonePolicy
+
+            self._zone_rule = ClimbZonePolicy(event_type, zones_file, zones, keypoint_conf)
+
+    def draw(self, image, camera_id: str) -> None:
+        if self._zone_rule is not None:
+            self._zone_rule.draw(image, camera_id)
 
     def evaluate(self, output: DetectorOutput) -> list[EventCandidate]:
+        if self._zone_rule is not None:
+            return self._zone_rule.evaluate(output)
         hits: list[tuple[Detection, str]] = []
         for d in output.detections:
             if not d.keypoints:

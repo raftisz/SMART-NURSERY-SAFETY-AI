@@ -16,6 +16,10 @@ import yaml
 
 Point = tuple[float, float]
 
+# "exit" = an Out-of-Area zone (the original kind; a zone without `kind` is one)
+# "climb" = the top surface of furniture children must not climb on (climbing zone mode)
+ZONE_KINDS = ("exit", "climb")
+
 
 def parse_hours(text: str) -> tuple[int, int]:
     """"09:00-15:00" -> (540, 900) minutes. A range may cross midnight ("22:00-06:00")."""
@@ -76,8 +80,11 @@ class Zone:
     child_filter: bool = True        # False = any person counts (no calibration needed)
     child_ratio: float | None = None  # None = use the policy default
     calibration: HeightModel | None = None
+    kind: str = "exit"
 
     def __post_init__(self) -> None:
+        if self.kind not in ZONE_KINDS:
+            raise ValueError(f"zone {self.name!r}: kind must be one of {ZONE_KINDS}")
         if len(self.polygon) < 3:
             raise ValueError(f"zone {self.name!r} needs at least 3 points")
         for x, y in self.polygon:
@@ -123,6 +130,7 @@ class Zone:
             child_filter=bool(data.get("child_filter", True)),
             child_ratio=float(data["child_ratio"]) if data.get("child_ratio") is not None else None,
             calibration=HeightModel.from_dict(cal) if cal else None,
+            kind=str(data.get("kind", "exit")),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -136,6 +144,8 @@ class Zone:
             data["child_ratio"] = self.child_ratio
         if self.calibration is not None:
             data["calibration"] = self.calibration.to_dict()
+        if self.kind != "exit":
+            data["kind"] = self.kind  # exit zones are written exactly as before
         return data
 
 

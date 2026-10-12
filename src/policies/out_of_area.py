@@ -53,6 +53,8 @@ class OutOfAreaPolicy(EventPolicy):
             self.zones = load_zones(resolve_path(zones_file))
         else:
             self.zones = {}
+        # climb zones (climbing zone mode) share zones.yaml but are not exits
+        self.zones = {cam: [z for z in zs if z.kind == "exit"] for cam, zs in self.zones.items()}
         self._warned: set[str] = set()
         total = sum(len(z) for z in self.zones.values())
         print(f"[out_of_area] {total} zone(s) loaded"

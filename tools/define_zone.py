@@ -5,6 +5,7 @@ Usage (from the repo root):
     python tools/define_zone.py --name main_gate --hours 09:00-15:00
     python tools/define_zone.py --name main_gate --source clip.mp4     # draw on a QA video
     python tools/define_zone.py --name test --any-person               # no calibration, any person counts
+    python tools/define_zone.py --name table1 --kind climb             # climbing zone mode: table top surface
 
 Steps in the window (mouse + Enter; works with a Thai keyboard):
     1. ZONE : click the corners of the exit area on the FLOOR, then Enter
@@ -74,7 +75,10 @@ def calibration_point(head, feet, w: int, h: int) -> tuple[float, float]:
 MIN_CALIBRATION_SPREAD = 0.05  # near and far feet must be >= 5% of the image height apart
 
 
-def build_zone(name, polygon_px, near_px, far_px, w, h, hours, any_person) -> Zone:
+def build_zone(name, polygon_px, near_px, far_px, w, h, hours, any_person, kind="exit") -> Zone:
+    if kind == "climb":  # furniture top surface: no height calibration, any person counts
+        return Zone(name=name, polygon=normalise(polygon_px, w, h), active_hours=hours,
+                    child_filter=False, kind="climb")
     calibration = None
     if not any_person:
         nf, nh = calibration_point(near_px[0], near_px[1], w, h)
@@ -174,6 +178,9 @@ def main() -> int:
     ap.add_argument("--hours", default="", help="active hours, e.g. 09:00-15:00 (comma for several)")
     ap.add_argument("--any-person", action="store_true",
                     help="skip calibration; any person in the zone counts (for testing)")
+    ap.add_argument("--kind", default="exit", choices=["exit", "climb"],
+                    help="exit = Out-of-Area zone (default); climb = top surface of furniture "
+                         "for climbing zone mode (no calibration)")
     ap.add_argument("--config", default="config/core.yaml")
     ap.add_argument("--zones-file", default="config/zones.yaml")
     args = ap.parse_args()
@@ -194,14 +201,16 @@ def main() -> int:
     # a video used for zones must be mirrored exactly as run_core.py will see it
     source = CameraSource(src_value, cam.get("width"), cam.get("height"), cam.get("flip"))
 
-    steps = ["zone"] if args.any_person else ["zone", "near", "far"]
+    steps = ["zone"] if (args.any_person or args.kind == "climb") else ["zone", "near", "far"]
+    if args.kind == "climb":
+        print("โซนปีนป่าย: คลิกมุมของพื้นผิวด้านบนของโต๊ะ/ชั้นวาง/ขอบหน้าต่าง ที่ห้ามปีนขึ้นไปยืน")
     points, size = run_ui(source, steps)
     if points is None:
         return 1
     w, h = size
     try:
         zone = build_zone(args.name, points["zone"], points.get("near"), points.get("far"),
-                          w, h, hours, args.any_person)
+                          w, h, hours, args.any_person, kind=args.kind)
     except ValueError as exc:
         print(f"ไม่ได้บันทึก: {exc}")
         return 1
