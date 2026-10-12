@@ -286,6 +286,14 @@ Let it run ~30 seconds before reading it, or start-up cost skews the average.
   tell fighting from hugging, walking together or celebrating, and it has not been
   tested with children or measured against its own gate yet. Details, what was
   tried, licensing notes and next steps: `docs/architecture.md` (Fight v1).
+- **Climbing detection (CCTV Core) is a prototype**, off by default. Its alert
+  asks a teacher to check and must always be confirmed. An informal check on 7
+  still photos of adults climbing gave 0/7: the current pose rule looks at body
+  posture (ankle above hip) but not at height above the floor, so someone standing
+  on a table looks the same as someone standing on the floor. Not tested with
+  children; no official gate or s1/s2 clips exist for climbing yet. Planned next
+  step (not done): per-camera furniture/climb zones. Details:
+  `docs/architecture.md` (Climbing v1).
 
 ## Decision Gate
 
