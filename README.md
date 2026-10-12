@@ -294,7 +294,11 @@ Let it run ~30 seconds before reading it, or start-up cost skews the average.
   children; no official gate or s1/s2 clips exist for climbing yet. An
   experimental zone mode (off by default) alerts on visible ankles inside
   per-camera furniture "climb" zones; it has only passed a mechanism check on still
-  images (3 of 4 behaved as declared), not a measurement. Details:
+  images (3 of 4 behaved as declared), not a measurement. An optional
+  `foot_offset` (default 0) moves the ankle point toward the sole using the
+  0.039 x body height ankle height of Drillis & Contini (1966); on 8 new still
+  images it gave 7 of 8 as declared (one far, small person missed, no false
+  alarm) - a mechanism check only, not accuracy. Details:
   `docs/architecture.md` (Climbing v1).
 
 ## Decision Gate
