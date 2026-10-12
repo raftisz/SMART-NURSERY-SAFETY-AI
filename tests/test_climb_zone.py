@@ -115,6 +115,53 @@ class ClimbZoneRuleTests(unittest.TestCase):
         self.assertEqual(foot_point(d, W, H, 0.3), (0.71, 0.45))
 
 
+class FootOffsetTests(unittest.TestCase):
+    """foot_offset moves the ankle point down by a fraction of the person's (box) height."""
+
+    def test_zero_offset_is_the_old_foot_point(self):
+        d = person(**ON_TABLE)
+        self.assertEqual(foot_point(d, W, H, 0.3, 0.0), foot_point(d, W, H, 0.3))
+        self.assertEqual(ClimbZonePolicy(zones={"cam0": [climb()]}).foot_offset, 0.0)
+
+    def test_positive_offset_moves_the_point_down_by_box_height(self):
+        d = person(**ON_TABLE)                                   # box 400 px tall, ankles at y 440
+        x, y = foot_point(d, W, H, 0.3, 0.039)
+        self.assertEqual(x, 0.7)
+        self.assertAlmostEqual(y, (440 + 0.039 * 400) / H, places=4)
+
+    def test_small_far_person_scales_with_its_own_height(self):
+        far = person(box=(500, 300, 520, 400), ankles=(510, 396))     # 100 px tall
+        near = person(box=(500, 100, 600, 900), ankles=(550, 880))    # 800 px tall
+        self.assertAlmostEqual(foot_point(far, W, H, 0.3, 0.05)[1] - 0.396, 0.05 * 100 / H, places=4)
+        self.assertAlmostEqual(foot_point(near, W, H, 0.3, 0.05)[1] - 0.880, 0.05 * 800 / H, places=4)
+
+    def test_offset_never_creates_a_point_without_visible_ankles(self):
+        p = ClimbZonePolicy(zones={"cam0": [climb()]}, foot_offset=0.039)
+        self.assertEqual(p.evaluate(output(person(**HIDDEN_LEGS))), [])
+        self.assertIsNone(foot_point(person(**HIDDEN_LEGS), W, H, 0.3, 0.039))
+
+    def test_offset_can_bring_ankles_just_above_a_thin_surface_zone_into_it(self):
+        # ankles 10 px above a zone that starts at y 0.45: outside with 0, inside with 0.039 x 400 px
+        d = person(box=(650, 50, 750, 450), ankles=(700, 440))
+        thin = climb(polygon=[[0.5, 0.45], [0.9, 0.45], [0.9, 0.5], [0.5, 0.5]])
+        self.assertEqual(ClimbZonePolicy(zones={"cam0": [thin]}).evaluate(output(d)), [])
+        self.assertEqual(len(ClimbZonePolicy(zones={"cam0": [thin]}, foot_offset=0.039).evaluate(output(d))), 1)
+
+    def test_offset_must_be_a_small_non_negative_fraction(self):
+        for bad in (-0.01, 0.5):
+            with self.assertRaises(ValueError):
+                ClimbZonePolicy(zones={"cam0": [climb()]}, foot_offset=bad)
+
+    def test_pose_policy_passes_the_offset_to_zone_mode(self):
+        p = ClimbingPosePolicy(mode="zone", zones={"cam0": [climb()]}, foot_offset=0.039)
+        self.assertEqual(p._zone_rule.foot_offset, 0.039)
+
+    def test_core_yaml_offset_is_zero(self):
+        pose = build_modules(load_config("config/core.yaml"), only={"climbing_pose"})[0]
+        climbing = next(p for p in pose.policies if isinstance(p, ClimbingPosePolicy))
+        self.assertEqual(climbing.foot_offset, 0.0)
+
+
 class DurationTests(unittest.TestCase):
     """How long is decided by the Event Manager (min_duration_s), never by the policy."""
 

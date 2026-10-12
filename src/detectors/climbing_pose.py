@@ -132,18 +132,21 @@ class ClimbingPosePolicy(EventPolicy):
 
     def __init__(self, event_type: str = "climbing", require_both: bool = True,
                  keypoint_conf: float = 0.3, mode: str = "pose",
-                 zones_file: str | None = "config/zones.yaml", zones: dict[str, list[Any]] | None = None):
+                 zones_file: str | None = "config/zones.yaml", zones: dict[str, list[Any]] | None = None,
+                 foot_offset: float = 0.0):
         if mode not in self.MODES:
             raise ValueError(f"climbing mode must be one of {self.MODES}")
         self.event_type = event_type
         self.require_both = require_both
         self.keypoint_conf = keypoint_conf
         self.mode = mode
+        self.foot_offset = float(foot_offset)
         self._zone_rule = None
         if mode == "zone":
             from src.policies.climb_zone import ClimbZonePolicy
 
-            self._zone_rule = ClimbZonePolicy(event_type, zones_file, zones, keypoint_conf)
+            self._zone_rule = ClimbZonePolicy(event_type, zones_file, zones, keypoint_conf,
+                                              foot_offset=foot_offset)
 
     def draw(self, image, camera_id: str) -> None:
         if self._zone_rule is not None:

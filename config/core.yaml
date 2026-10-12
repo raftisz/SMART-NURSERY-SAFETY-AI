@@ -62,7 +62,9 @@ modules:
         #       zone = ทดลอง: ข้อเท้าที่มองเห็นอยู่บนโซน "climb" (พื้นผิวโต๊ะ/ชั้นวาง) ใน config/zones.yaml
         #              วาดด้วย: python tools/define_zone.py --name table1 --kind climb
         #              และต้องใส่ min_duration_s / max_gap_s ที่ events.types.climbing ด้านล่าง (เช่น 1.0 / 0.8)
-        params: {event_type: climbing, require_both: true, mode: pose}
+        # foot_offset (โหมดโซนเท่านั้น): เลื่อนจุดข้อเท้าลงหาพื้นรองเท้า = เศษส่วนของความสูงตัว
+        #              0 = เดิม; ค่าอ้างอิง 0.039 (ข้อเท้าสูงจากพื้น 0.039H, Drillis & Contini 1966 / Winter Fig. 4.1)
+        params: {event_type: climbing, require_both: true, mode: pose, foot_offset: 0.0}
       - class: "src.policies.fight:FightPolicy"
         # ค่าเริ่มต้นสำหรับทดลอง ต้องปรับจากคลิป QA (ตัวเลข spd บนกรอบคนช่วยปรับ speed_threshold)
         params: {event_type: fight, close_gap: 0.15, speed_threshold: 1.5, speed_window_s: 0.5}

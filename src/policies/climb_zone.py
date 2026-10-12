@@ -8,6 +8,11 @@ stored in config/zones.yaml next to the Out-of-Area zones (kind: climb).
 
 Rule per frame: the mean of the person's ankles with confidence > keypoint_conf
 lies inside an active climb zone -> one candidate per zone (subject = zone name).
+`foot_offset` (default 0 = off) moves that point down by a fraction of the person
+box height, because the ankle joint sits above the sole: 0.039 x body height in
+Drillis & Contini (1966), reproduced as Fig. 4.1 in Winter, Biomechanics and Motor
+Control of Human Movement. The box height stands in for body height, so for a
+crouching person the shift is smaller.
 There is NO fallback to the bottom of the person box: when the ankles cannot be
 seen (legs hidden behind the table, cut by the image edge) the person does not
 count, because a box cut by a table edge would put its bottom on the table top.
@@ -32,13 +37,16 @@ from src.utils.config import resolve_path
 L_ANKLE, R_ANKLE = 15, 16
 
 
-def foot_point(det: Detection, w: int, h: int, min_conf: float) -> tuple[float, float] | None:
-    """Normalised mean of the confident ankles; None when no ankle is seen."""
+def foot_point(det: Detection, w: int, h: int, min_conf: float,
+               foot_offset: float = 0.0) -> tuple[float, float] | None:
+    """Normalised mean of the confident ankles, moved down by foot_offset x the person box height
+    (the ankle joint sits above the sole); None when no ankle is seen."""
     kps = det.keypoints or []
     pts = [kps[i] for i in (L_ANKLE, R_ANKLE) if len(kps) > i and kps[i].confidence > min_conf]
     if not pts:
         return None
-    return (round(sum(p.x for p in pts) / len(pts) / w, 4), round(sum(p.y for p in pts) / len(pts) / h, 4))
+    y = sum(p.y for p in pts) / len(pts) + foot_offset * max(0.0, det.bbox.height)
+    return (round(sum(p.x for p in pts) / len(pts) / w, 4), round(y / h, 4))
 
 
 class ClimbZonePolicy(EventPolicy):
@@ -49,9 +57,13 @@ class ClimbZonePolicy(EventPolicy):
         zones: dict[str, list[Any]] | None = None,
         keypoint_conf: float = 0.3,
         person_label: str = "person",
+        foot_offset: float = 0.0,
     ):
+        if not 0.0 <= foot_offset <= 0.2:
+            raise ValueError("foot_offset must be a fraction of the person's height between 0 and 0.2")
         self.event_type = event_type
         self.keypoint_conf = float(keypoint_conf)
+        self.foot_offset = float(foot_offset)
         self.person_label = person_label.lower()
         if zones is not None:
             loaded = {str(c): [z if isinstance(z, Zone) else Zone.from_dict(z) for z in zs] for c, zs in zones.items()}
@@ -72,7 +84,7 @@ class ClimbZonePolicy(EventPolicy):
         for d in output.detections:
             if d.label.lower() != self.person_label or not d.keypoints:
                 continue
-            foot = foot_point(d, output.frame_width, output.frame_height, self.keypoint_conf)
+            foot = foot_point(d, output.frame_width, output.frame_height, self.keypoint_conf, self.foot_offset)
             if foot is None:
                 continue
             for zone in zones:
